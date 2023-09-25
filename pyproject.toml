@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "tg-howwasyourday-v2"
+version = "0.1.0"
+description = "How was your day?"
+authors = ["Ivan <toftul.ivan@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "tg_howwasyourday_v2"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+python-telegram-bot = "^20.5"
+influxdb-client = "^1.37.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
