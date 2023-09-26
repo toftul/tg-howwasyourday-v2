@@ -2,10 +2,32 @@
 import os
 import logging
 import random
+from datetime import datetime
 
 # bot imports
-from telegram import Update, Bot
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram import (
+    Update,
+    MenuButtonCommands,
+    ReplyKeyboardMarkup,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    Bot,
+    constants
+)
+
+from telegram.ext import (
+    Application,
+    Updater,
+    MessageHandler,
+    filters,
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    CallbackQueryHandler,
+    CallbackContext
+)
 
 # influxdb imports
 import influxdb_client
@@ -31,7 +53,45 @@ from config import (
 )
 
 #client = influxdb_client.InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
-#write_api = client.write_api(write_options=SYNCHRONOUS)  
+#write_api = client.write_api(write_options=SYNCHRONOUS)
+
+
+# keyboard layouts
+keyboard_mood_layout = [
+    ["0"],
+    ["-1", "+1"],
+    ["-2", "+2"],
+    ["-3", "+3"],
+    ["-4", "+4"],
+    ["-5", "+5"],
+    ["-6", "+6"],
+    ["-7", "+7"],
+    ["-8", "+8"],
+    ["-9", "+9"],
+    ["-10", "+10"]
+]
+keyboard_mood_markup = ReplyKeyboardMarkup(
+    keyboard=keyboard_mood_layout,
+    resize_keyboard=False,
+    one_time_keyboard=False,
+)
+
+keyboard_emotion_layout = [
+    ["/start"],
+    ["Overthinking", "Mindfulness"],
+    ["Tired", "Energetic"],
+    ["Stressed", "Relaxed"],
+    ["Lazy", "Motivated"],
+    ["Anxious", "Calm"],
+    ["Sad", "Happy"],
+    ["Angry", "Peaceful"],
+    ["Burn Out", "Engaged"],
+]
+keyboard_emotion_markup = ReplyKeyboardMarkup(
+    keyboard=keyboard_emotion_layout,
+    resize_keyboard=False,
+    one_time_keyboard=False,
+)
 
 
 # Enable logging
@@ -42,7 +102,12 @@ logger = logging.getLogger(__name__)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("ho-ho!")
+
+
+    await update.message.reply_text(
+        text="ho-ho!",
+        reply_markup=keyboard_mood_markup
+    )
 
 
 async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -77,14 +142,26 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = f"Thanks! I'll remember that!\nI will send you a reminder in {DUE_MINIMAL_H}-{DUE_MAXIMAL_H} hours."
     await update.effective_message.reply_text(text)
 
-async def getStatisticsAboutTheDay(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def getEmotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    message_text = update.message.text
+    await update.message.reply_text(
+        text=f'Thanks, I got your emotion is {message_text}. Anything else?',
+        reply_markup=keyboard_emotion_markup
+    )
+
+async def getMoodScore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
     message_text = update.message.text
 
-    # check if it is a digit
-    if message_text.replace('.','',1).replace('-','',1).isdigit():
-        1 + 1
-
+    # check if it is a number
+    # https://stackoverflow.com/a/23639915/10282471
+    #if message_text.replace('.','',1).replace('-','',1).replace('+','',1).isdigit():
+    #   1 + 1
+    await update.message.reply_text(
+        text=f"Thanks, I got your mood score which is {message_text}. What's your emotion?",
+        reply_markup=keyboard_emotion_markup
+    )
 
 
 # it does not work, not sure how to run
@@ -99,15 +176,15 @@ async def send_startup_messages() -> None:
 
 def main() -> None:
     """Run bot."""
-    # Create the Application and pass it your bot's token.
+
     application = Application.builder().token(token=TOKEN).build()
 
-    # on different commands - answer in Telegram
     application.add_handler(CommandHandler(["start", "help"], start))
 
-    # Run the bot until the user presses Ctrl-C
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^[+-]?\d+\.?\d*$'), getMoodScore))
+    application.add_handler(MessageHandler(filters.TEXT & ~ filters.Regex(r'^[+-]?\d+\.?\d*$'), getEmotions))
 
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":
