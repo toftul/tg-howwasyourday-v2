@@ -145,10 +145,17 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def getEmotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
     message_text = update.message.text
-    await update.message.reply_text(
-        text=f'Thanks, I got your emotion is {message_text}. Anything else?',
-        reply_markup=keyboard_emotion_markup
-    )
+
+    if message_text in keyboard_emotion_layout:
+        await update.message.reply_text(
+            text=f'Thanks, I got your emotion is {message_text}. Anything else?',
+            reply_markup=keyboard_emotion_markup
+        )
+    else: 
+        await update.message.reply_text(
+            text="I don't recognize this emotion. Anything else?",
+            reply_markup=keyboard_emotion_markup
+        )
 
 async def getMoodScore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
