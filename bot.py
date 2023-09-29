@@ -1,3 +1,14 @@
+"""
+helpful:
+- https://0xacab.org/viperey/telegram-bot-whisper-transcriber/-/blob/no-masters/main.py?ref_type=heads
+- https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/persistentconversationbot.py
+- https://github.com/python-telegram-bot/python-telegram-bot/wiki/Storing-bot%2C-user-and-chat-related-data
+- https://docs.python-telegram-bot.org/en/stable/telegram.ext.conversationhandler.html
+- https://docs.python-telegram-bot.org/en/v20.5/telegram.message.html
+"""
+
+
+
 # basic imports 
 import os
 import logging
@@ -52,6 +63,9 @@ from config import (
     DUE_MAXIMAL_H,
 )
 
+from emotions import emotions_list
+from filters import FilterAllowedChats, FilterEmotions
+
 #client = influxdb_client.InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
 #write_api = client.write_api(write_options=SYNCHRONOUS)
 
@@ -101,9 +115,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# Consersation 
+STATE_GET_MOOD_SCORE, STATE_SELECT_EMOTIONS = range(2)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-
-
     await update.message.reply_text(
         text="ho-ho!",
         reply_markup=keyboard_mood_markup
@@ -182,11 +198,40 @@ async def send_startup_messages() -> None:
 
 
 def main() -> None:
-    """Run bot."""
+    filer_allowed_chat_ids = FilterAllowedChats(ALLOWED_CHAT_IDS)
+    filer_emotions = FilterEmotions(emotions_list)
 
     application = Application.builder().token(token=TOKEN).build()
 
-    application.add_handler(CommandHandler(["start", "help"], start))
+    start_handler = CommandHandler(["start", "help"], start)
+    mood_handler = MessageHandler(
+        filters.TEXT & filer_allowed_chat_ids & filters.Regex(r'^[+-]?\d+\.?\d*$'), 
+        getMoodScore
+    )
+    emotion_handler = MessageHandler(
+        filters.TEXT & filer_allowed_chat_ids & filer_emotions,
+        getEmotions
+    )
+
+    conv_handler = ConversationHandler(
+        entry_points=[start_handler, mood_handler],
+        states={
+            STATE_GET_MOOD_SCORE: [
+                mood_handler
+            ],
+            STATE_SELECT_EMOTIONS: [
+                emotion_handler
+            ]
+        },
+        fallbacks=[
+            MessageHandler(filters.Regex("^Done$"), done)
+        ],
+        name='emotional_handler',
+        persistent=True
+    )
+
+
+    application.add_handler(start_handler)
 
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^[+-]?\d+\.?\d*$'), getMoodScore))
     application.add_handler(MessageHandler(filters.TEXT & ~ filters.Regex(r'^[+-]?\d+\.?\d*$'), getEmotions))
