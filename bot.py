@@ -11,6 +11,7 @@ helpful:
 import os
 import logging
 import random
+import numpy as np
 from datetime import datetime
 
 # bot imports
@@ -175,7 +176,8 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     job_removed = remove_job_if_exists(str(chat_id), context)
 
     hour2sec = 1  # 60 * 60  # [h -> s]
-    due = random.randrange(DUE_MINIMAL_H * hour2sec, DUE_MAXIMAL_H * hour2sec)
+    due = np.random.uniform(low=DUE_MINIMAL_H * hour2sec, high=DUE_MAXIMAL_H * hour2sec)
+    #due = random.randrange(DUE_MINIMAL_H * hour2sec, DUE_MAXIMAL_H * hour2sec)
     context.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id), data=due)
 
     text = f"Thanks! I'll remember that!\nI will send you a reminder in {DUE_MINIMAL_H}-{DUE_MAXIMAL_H} hours."
@@ -221,14 +223,16 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=keyboard_mood_markup
     )
     await set_timer(update=update, context=context)
-    return STATE_GET_MOOD_SCORE
+    return ConversationHandler.END
+    #return STATE_GET_MOOD_SCORE
 
 
 def main() -> None:
     # need to create persistent bot in order to use user data
     # https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/persistentconversationbot.py
-    persistence = PicklePersistence(filepath="howwasyourdaybot_data")
-    application = Application.builder().token(token=TOKEN).persistence(persistence).build()
+    #persistence = PicklePersistence(filepath="howwasyourdaybot_data")
+    #application = Application.builder().token(token=TOKEN).persistence(persistence).build()
+    application = Application.builder().token(token=TOKEN).build()
 
     # setup filters
     filter_allowed_chat_ids = FilterAllowedChats(ALLOWED_CHAT_IDS)
@@ -259,12 +263,10 @@ def main() -> None:
             ]
         },
         fallbacks=[done_handler],
-        name='emotional_handler',
-        persistent=True
+        #name='emotional_handler',
+        #persistent=True
     )
 
-    #application.add_handler(start_handler)
-    #application.add_handler(mood_handler)
     application.add_handler(conv_handler)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)

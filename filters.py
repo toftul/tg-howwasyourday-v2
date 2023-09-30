@@ -8,7 +8,7 @@ class FilterAllowedChats(MessageFilter):
         self.allowed_chat_ids = allowed_chat_ids
 
     def filter(self, message: Message) -> bool:
-        chat_id = str(message.chat.id)
+        chat_id = message.chat.id
         is_allowed = chat_id in self.allowed_chat_ids
         if not is_allowed:
             logging.error(f"chat_id={chat_id} is not allowed")
