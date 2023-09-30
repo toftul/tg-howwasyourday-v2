@@ -63,8 +63,8 @@ from emotions import emotions_list
 from plot_emotions import plot_emotions
 from filters import FilterAllowedChats, FilterEmotions, FilterIsDigit
 
-#client = influxdb_client.InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
-#write_api = client.write_api(write_options=SYNCHRONOUS)
+client = influxdb_client.InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
+write_api = client.write_api(write_options=SYNCHRONOUS)
 
 # keyboard layouts
 keyboard_mood_layout = [
@@ -175,13 +175,12 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     job_removed = remove_job_if_exists(str(chat_id), context)
 
-    hour2sec = 1  # 60 * 60  # [h -> s]
+    hour2sec = 60 * 60  # [h -> s]
     due = np.random.uniform(low=DUE_MINIMAL_H * hour2sec, high=DUE_MAXIMAL_H * hour2sec)
-    #due = random.randrange(DUE_MINIMAL_H * hour2sec, DUE_MAXIMAL_H * hour2sec)
     context.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id), data=due)
 
-    text = f"Thanks! I'll remember that!\nI will send you a reminder in {DUE_MINIMAL_H}-{DUE_MAXIMAL_H} hours."
-    await update.effective_message.reply_text(text)
+    #text = f"Thanks! I'll remember that!\nI will send you a reminder in {DUE_MINIMAL_H}-{DUE_MAXIMAL_H} hours."
+    #await update.effective_message.reply_text(text)
 
 async def unknown_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
@@ -196,6 +195,10 @@ async def unknown_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def get_mood_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
     message_text = update.message.text
+    mode_score = float(message_text)
+
+    context.user_data.clear()
+    context.user_data['mood_score'] = mode_score
 
     await update.message.reply_text(
         text=f"Thanks, I got your mood score which is {message_text}. What's your emotion?",
@@ -208,6 +211,8 @@ async def get_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     chat_id = update.effective_chat.id
     message_text = update.message.text
 
+    context.user_data[message_text] = emotions_list[message_text]
+
     await update.message.reply_text(
         text=f'Thanks, I got your emotion is {message_text}. Anything else?',
         reply_markup=keyboard_emotion_markup
@@ -215,11 +220,59 @@ async def get_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     return STATE_SELECT_EMOTIONS
     
 
+def calculate_emotion_average(selected_emotions):
+    valence_values = np.array([], dtype=float)
+    arousal_values = np.array([], dtype=float)
+
+    are_emotions_valid = any(emotion in emotions_list.keys() for emotion in selected_emotions)
+    if are_emotions_valid:
+        for emotion_name in selected_emotions:
+            emotion_data = emotions_list.get(emotion_name)
+            if emotion_data:
+                valence_values = np.append(valence_values, emotion_data["valence"])
+                arousal_values = np.append(arousal_values, emotion_data["arousal"])
+
+        mean_valence = np.mean(valence_values)
+        mean_arousal = np.mean(arousal_values)
+        print(valence_values)
+        print(arousal_values)
+        return mean_valence, mean_arousal
+    else:
+        return 0.0, 0.0
+
+
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    chat_id = update.effective_chat.id
-    message_text = update.message.text
+    #chat_id = update.effective_chat.id
+    #message_text = update.message.text
+
+    mood_score = context.user_data["mood_score"]
+    selected_emotions = list(context.user_data.keys())
+    selected_emotions.remove("mood_score")
+    mean_valence, mean_arousal = calculate_emotion_average(selected_emotions=selected_emotions)
+    point = (
+        Point('emotion_measurement')
+        .tag('user', update.effective_chat.id)
+        .field('mood_score', mood_score)
+        .field('mean_valence', mean_valence)
+        .field('mean_arousal', mean_arousal)
+        .field('emotions', ', '.join(selected_emotions))
+        .time(datetime.utcnow())
+    )
+    
+    points = []
+    points.append(point)
+    for emotion in selected_emotions:
+        points.append(
+            Point('selected_emotions')
+            .tag('user', update.effective_chat.id)
+            .tag('emotion', emotion)
+            .field('value', 1)
+            .time(datetime.utcnow())
+        )
+
+    write_api.write(bucket=INFLUXDB_BUCKET, record=points)
     await update.message.reply_text(
-        text=f"Writing down your emotions. I will ask again you later. See ya!",
+        text="Writing down your mood score and emotions. I will ask again you later. See ya!",
         reply_markup=keyboard_mood_markup
     )
     await set_timer(update=update, context=context)
