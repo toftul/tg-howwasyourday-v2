@@ -131,9 +131,9 @@ async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     image_filename = 'emotions.png'
     try:
         with open('emotions.png', 'rb') as image_file:
-            await update.message.reply_photo(photo=image_file)
-            await update.message.reply_text(
-                text="Based on the (Russel, 1980)"
+            await update.message.reply_photo(
+                photo=image_file,
+                caption="Based on the (Russel, 1980)"
             )
     except FileNotFoundError:
         # Handle the case where the image file is not found
