@@ -7,8 +7,6 @@ helpful:
 - https://docs.python-telegram-bot.org/en/v20.5/telegram.message.html
 """
 
-
-
 # basic imports 
 import os
 import logging
@@ -37,17 +35,14 @@ from telegram.ext import (
     ContextTypes,
     ConversationHandler,
     CallbackQueryHandler,
-    CallbackContext
+    CallbackContext,
+    PicklePersistence
 )
 
 # influxdb imports
 import influxdb_client
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
-
-# get env variables
-# TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-# ALLOWED_CHAT_IDS = os.environ.get("ALLOWED_CHAT_IDS")
 
 from config import (
     TOKEN, 
@@ -64,11 +59,11 @@ from config import (
 )
 
 from emotions import emotions_list
-from filters import FilterAllowedChats, FilterEmotions
+from plot_emotions import plot_emotions
+from filters import FilterAllowedChats, FilterEmotions, FilterIsDigit
 
 #client = influxdb_client.InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
 #write_api = client.write_api(write_options=SYNCHRONOUS)
-
 
 # keyboard layouts
 keyboard_mood_layout = [
@@ -90,17 +85,19 @@ keyboard_mood_markup = ReplyKeyboardMarkup(
     one_time_keyboard=False,
 )
 
-keyboard_emotion_layout = [
-    ["/start"],
-    ["Overthinking", "Mindfulness"],
-    ["Tired", "Energetic"],
-    ["Stressed", "Relaxed"],
-    ["Lazy", "Motivated"],
-    ["Anxious", "Calm"],
-    ["Sad", "Happy"],
-    ["Angry", "Peaceful"],
-    ["Burn Out", "Engaged"],
-]
+num_columns = 3
+emotion_keys = list(emotions_list.keys())
+keyboard_emotion_layout = [["Done", "Show Russel map"]] + [emotion_keys[i:i+num_columns] for i in range(0, len(emotion_keys), num_columns)]
+"""
+Gives something like
+[['Done'],
+ ['Astonished', 'Excited', 'Happy'],
+ ['Pleased', 'Relaxed', 'Peaceful'],
+ ['Calm', 'Sleepy', 'Tired'],
+ ['Bored', 'Sad', 'Miserable'],
+ ['Nervous', 'Angry', 'Frustrated'],
+ ['Annoyed', 'Afraid']]
+"""
 keyboard_emotion_markup = ReplyKeyboardMarkup(
     keyboard=keyboard_emotion_layout,
     resize_keyboard=False,
@@ -119,11 +116,37 @@ logger = logging.getLogger(__name__)
 STATE_GET_MOOD_SCORE, STATE_SELECT_EMOTIONS = range(2)
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text(
         text="ho-ho!",
         reply_markup=keyboard_mood_markup
     )
+    return STATE_GET_MOOD_SCORE
+
+
+async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    # send emotions.png
+    chat_id = update.effective_chat.id
+    image_filename = 'emotions.png'
+    try:
+        with open('emotions.png', 'rb') as image_file:
+            await update.message.reply_photo(photo=image_file)
+            await update.message.reply_text(
+                text="Based on the (Russel, 1980)"
+            )
+    except FileNotFoundError:
+        # Handle the case where the image file is not found
+        logging.error(f"Image {image_filename} is not found. Creating one.")
+        # create an image
+        plot_emotions()
+        with open('emotions.png', 'rb') as image_file:
+            await update.message.reply_photo(photo=image_file)
+            await update.message.reply_text(
+                text="Based on the (Russel, 1980)"
+            )
+
+    return STATE_SELECT_EMOTIONS
+    
 
 
 async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -151,67 +174,78 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     job_removed = remove_job_if_exists(str(chat_id), context)
 
-    hour2sec = 60 * 60  # [h -> s]
+    hour2sec = 1  # 60 * 60  # [h -> s]
     due = random.randrange(DUE_MINIMAL_H * hour2sec, DUE_MAXIMAL_H * hour2sec)
     context.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id), data=due)
 
     text = f"Thanks! I'll remember that!\nI will send you a reminder in {DUE_MINIMAL_H}-{DUE_MAXIMAL_H} hours."
     await update.effective_message.reply_text(text)
 
-async def getEmotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def unknown_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    chat_id = update.effective_chat.id
+    message_text = update.message.text
+    await update.message.reply_text(
+        text="I don't recognize this emotion. Anything else?",
+        reply_markup=keyboard_emotion_markup
+    )
+    return STATE_SELECT_EMOTIONS
+
+
+async def get_mood_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
     message_text = update.message.text
 
-    if message_text in keyboard_emotion_layout:
-        await update.message.reply_text(
-            text=f'Thanks, I got your emotion is {message_text}. Anything else?',
-            reply_markup=keyboard_emotion_markup
-        )
-    else: 
-        await update.message.reply_text(
-            text="I don't recognize this emotion. Anything else?",
-            reply_markup=keyboard_emotion_markup
-        )
-
-async def getMoodScore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update.effective_chat.id
-    message_text = update.message.text
-
-    # check if it is a number
-    # https://stackoverflow.com/a/23639915/10282471
-    #if message_text.replace('.','',1).replace('-','',1).replace('+','',1).isdigit():
-    #   1 + 1
     await update.message.reply_text(
         text=f"Thanks, I got your mood score which is {message_text}. What's your emotion?",
         reply_markup=keyboard_emotion_markup
     )
+    return STATE_SELECT_EMOTIONS
 
 
-# it does not work, not sure how to run
-async def send_startup_messages() -> None:
-    bot = Bot(token=TOKEN)
-    for user_id in ALLOWED_CHAT_IDS:
-        await bot.send_message(
-            chat_id=user_id,
-            text="Я перезапустился! А как у тебя дела?"
-        )
+async def get_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    chat_id = update.effective_chat.id
+    message_text = update.message.text
+
+    await update.message.reply_text(
+        text=f'Thanks, I got your emotion is {message_text}. Anything else?',
+        reply_markup=keyboard_emotion_markup
+    )
+    return STATE_SELECT_EMOTIONS
+    
+
+async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    chat_id = update.effective_chat.id
+    message_text = update.message.text
+    await update.message.reply_text(
+        text=f"Writing down your emotions. I will ask again you later. See ya!",
+        reply_markup=keyboard_mood_markup
+    )
+    await set_timer(update=update, context=context)
+    return STATE_GET_MOOD_SCORE
 
 
 def main() -> None:
-    filer_allowed_chat_ids = FilterAllowedChats(ALLOWED_CHAT_IDS)
-    filer_emotions = FilterEmotions(emotions_list)
+    # need to create persistent bot in order to use user data
+    # https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/persistentconversationbot.py
+    persistence = PicklePersistence(filepath="howwasyourdaybot_data")
+    application = Application.builder().token(token=TOKEN).persistence(persistence).build()
 
-    application = Application.builder().token(token=TOKEN).build()
+    # setup filters
+    filter_allowed_chat_ids = FilterAllowedChats(ALLOWED_CHAT_IDS)
+    filter_emotions = FilterEmotions(emotions_list)
+    filter_isgidit = FilterIsDigit()
 
-    start_handler = CommandHandler(["start", "help"], start)
+    start_handler = CommandHandler("start", start)
     mood_handler = MessageHandler(
-        filters.TEXT & filer_allowed_chat_ids & filters.Regex(r'^[+-]?\d+\.?\d*$'), 
-        getMoodScore
+        filters.TEXT & filter_allowed_chat_ids & filter_isgidit,
+        get_mood_score
     )
     emotion_handler = MessageHandler(
-        filters.TEXT & filer_allowed_chat_ids & filer_emotions,
-        getEmotions
+        filters.TEXT & filter_allowed_chat_ids & filter_emotions,
+        get_emotions
     )
+    done_handler = MessageHandler(filters.Regex("^Done$"), done)
+    show_map_handler = MessageHandler(filters.Regex("^Show Russel map$"), get_help)
 
     conv_handler = ConversationHandler(
         entry_points=[start_handler, mood_handler],
@@ -220,21 +254,18 @@ def main() -> None:
                 mood_handler
             ],
             STATE_SELECT_EMOTIONS: [
-                emotion_handler
+                emotion_handler,
+                show_map_handler
             ]
         },
-        fallbacks=[
-            MessageHandler(filters.Regex("^Done$"), done)
-        ],
+        fallbacks=[done_handler],
         name='emotional_handler',
         persistent=True
     )
 
-
-    application.add_handler(start_handler)
-
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^[+-]?\d+\.?\d*$'), getMoodScore))
-    application.add_handler(MessageHandler(filters.TEXT & ~ filters.Regex(r'^[+-]?\d+\.?\d*$'), getEmotions))
+    #application.add_handler(start_handler)
+    #application.add_handler(mood_handler)
+    application.add_handler(conv_handler)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 

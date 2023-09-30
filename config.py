@@ -2,8 +2,9 @@ import os
 import json
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-ALLOWED_CHAT_IDS_JSON = os.environ.get("ALLOWED_CHAT_IDS_JSON")
-ALLOWED_CHAT_IDS = json.loads(ALLOWED_CHAT_IDS_JSON)
+#ALLOWED_CHAT_IDS_JSON = os.environ.get("ALLOWED_CHAT_IDS_JSON")
+#ALLOWED_CHAT_IDS = json.loads(ALLOWED_CHAT_IDS_JSON)
+ALLOWED_CHAT_IDS = os.environ.get("ALLOWED_CHAT_IDS", default="").split(",")
 lilya_id = os.environ.get("LILYA_ID")
 INFLUXDB_TOKEN = os.environ.get("INFLUXDB_TOKEN")
 INFLUXDB_URL = os.environ.get("INFLUXDB_URL")
