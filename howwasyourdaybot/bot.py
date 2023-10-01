@@ -213,8 +213,12 @@ async def get_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     context.user_data[message_text] = emotions_list[message_text]
 
+    #await update.message.reply_text(
+    #    text=f'Thanks, I got your emotion is {message_text}. Anything else?',
+    #    reply_markup=keyboard_emotion_markup
+    #)
     await update.message.reply_text(
-        text=f'Thanks, I got your emotion is {message_text}. Anything else?',
+        text='Anything else?',
         reply_markup=keyboard_emotion_markup
     )
     return STATE_SELECT_EMOTIONS
