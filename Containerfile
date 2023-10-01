@@ -6,4 +6,6 @@ COPY . .
 
 RUN pip install -r requirements.txt
 
+WORKDIR /bot/howwasyourdaybot
+
 CMD [ "python", "bot.py"]

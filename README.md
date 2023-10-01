@@ -35,7 +35,7 @@ Or it can be run with just poetry but one needs to install [this plugin](https:/
 ```shell
 poetry self add poetry-dotenv-plugin
 ```
-and create `.env` file
+and create `howwasyourdaybot/.env` file
 ```shell
 TELEGRAM_BOT_TOKEN='token'  
 ALLOWED_CHAT_IDS='123, 1234' 
@@ -49,3 +49,8 @@ DUE_MAXIMAL_H=8
 NAMES_FOR_LILYA_JSON='["name1", "name2", "name3"]'  
 REMINDERS_LIST_JSON='["а? а? а? А? ААА? ААААА? а?!", "ну че как там", "sup?", "How are you?", "Как делишки?", "Давно не было от тебя вестей, я соскучился!", "Damn. Damn-damn!! Whats up!?"]'
 ```
+
+
+## TODO
+
+1. Settings for the reminder frequency per user

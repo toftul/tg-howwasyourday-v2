@@ -2,6 +2,10 @@
 # Russell, J. A. A circumplex model of affect.
 # Journal of Personality and Social Psychology 39, 1161–1178 (1980)
 emotions_list = {
+    "Neutral": {
+        "valence": 0.0,
+        "arousal": 0.0
+    },
     "Astonished": {
         "valence": 0.158,
         "arousal": 0.89

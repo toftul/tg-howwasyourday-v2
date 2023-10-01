@@ -242,10 +242,12 @@ def calculate_emotion_average(selected_emotions):
 
 
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    #chat_id = update.effective_chat.id
+    chat_id = update.effective_chat.id
     #message_text = update.message.text
 
     mood_score = context.user_data["mood_score"]
+    
+    # emotion_average function filters out any non-emotion related keys
     selected_emotions = list(context.user_data.keys())
     selected_emotions.remove("mood_score")
     mean_valence, mean_arousal = calculate_emotion_average(selected_emotions=selected_emotions)
@@ -271,8 +273,11 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
 
     write_api.write(bucket=INFLUXDB_BUCKET, record=points)
+    done_text="Writing down your mood score and emotions. I will ask again you later. See ya!"
+    if chat_id == lilya_id:
+        done_text = "Хорошо, " + random.choice(namesForLilya) + "! Я записал. Потом спрошу еще!"
     await update.message.reply_text(
-        text="Writing down your mood score and emotions. I will ask again you later. See ya!",
+        text=done_text,
         reply_markup=keyboard_mood_markup
     )
     await set_timer(update=update, context=context)
@@ -281,7 +286,6 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 def main() -> None:
-    # need to create persistent bot in order to use user data
     # https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/persistentconversationbot.py
     #persistence = PicklePersistence(filepath="howwasyourdaybot_data")
     #application = Application.builder().token(token=TOKEN).persistence(persistence).build()
