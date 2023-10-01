@@ -5,7 +5,7 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=/home/ivan/bots/tg-howwasyourday-v2/howwasyourdaybot
-ExecStart=poetry run python bot.py
+ExecStart=/home/ivan/.local/bin/poetry run python bot.py
 Restart=always
 RestartSec=30
 
