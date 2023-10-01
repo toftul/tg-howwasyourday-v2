@@ -50,6 +50,29 @@ NAMES_FOR_LILYA_JSON='["name1", "name2", "name3"]'
 REMINDERS_LIST_JSON='["а? а? а? А? ААА? ААААА? а?!", "ну че как там", "sup?", "How are you?", "Как делишки?", "Давно не было от тебя вестей, я соскучился!", "Damn. Damn-damn!! Whats up!?"]'
 ```
 
+### Manage with systemd
+
+Change `howwasyourdaybot.service` file and copy it 
+```bash
+cp howwasyourdaybot.service ~/.config/systemd/user/howwasyourdaybot.service
+```
+Start the service
+```bash
+systemctl --user enable --now howwasyourdaybot.service
+```
+Since it is a userwide service, don't forget to do this
+```bash
+loginctl enable-linger your_user_name
+```
+
+### Self updates
+
+Self updates can be managed by the `self-update.sh` script and `cron`. Setup by running `crontab -e`
+```shell
+0 5 * * * /bin/bash /path/to/self-update.sh
+```
+This will run it daily at 5am. You can check the current cronjobs by `crontab -l`.
+Don't forget to make `gh auth login`.
 
 ## TODO
 

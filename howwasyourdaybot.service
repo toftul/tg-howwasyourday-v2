@@ -1,0 +1,13 @@
+[Unit]
+Description=How was your day?
+Wants=network-online.target
+After=network-online.target 
+
+[Service]
+WorkingDirectory=/home/ivan/bots/tg-howwasyourday-v2/howwasyourdaybot
+ExecStart=poetry run python bot.py
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=default.target
