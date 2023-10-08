@@ -1,7 +1,7 @@
 # custom 
 poetry.lock
 emotions.png
-howwasyourdaybot_data
+bot_data.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
