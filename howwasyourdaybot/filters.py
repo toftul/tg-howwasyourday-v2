@@ -40,7 +40,7 @@ class FilterIsDigit(MessageFilter):
         # https://stackoverflow.com/a/23639915/10282471
         isdigit = text.replace('.','',1).replace('-','',1).replace('+','',1).isdigit()
         if not isdigit:
-            logging.error(f"Got {text}, which is not a number (chat_id={chat_id}).")
-        
-        logging.error(f"Got {text}, which is a number (chat_id={chat_id}).")
+            logging.info(f"Got {text}, which is not a number (chat_id={chat_id}).")
+        else: 
+            logging.info(f"Got {text}, which is a number (chat_id={chat_id}).")
         return isdigit
