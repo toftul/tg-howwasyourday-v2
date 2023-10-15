@@ -40,6 +40,9 @@ from telegram.ext import (
     PicklePersistence
 )
 
+# persistence
+from JSONPersistence import JSONPersistence
+
 # influxdb imports
 import influxdb_client
 from influxdb_client import InfluxDBClient, Point, WritePrecision
@@ -137,7 +140,7 @@ async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             )
     except FileNotFoundError:
         # Handle the case where the image file is not found
-        logging.error(f"Image {image_filename} is not found. Creating one.")
+        logging.info(f"Image {image_filename} is not found. Creating one.")
         # create an image
         plot_emotions()
         with open('emotions.png', 'rb') as image_file:
@@ -169,6 +172,47 @@ def remove_job_if_exists(name: str, context: ContextTypes.DEFAULT_TYPE) -> bool:
     return True
 
 
+async def setup_reminder_due_max(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # set min time if not set to compare
+    if context.user_data.get("REMINDER_DUE_MINIMAL_H") is None:
+        context.user_data["REMINDER_DUE_MINIMAL_H"] = DUE_MINIMAL_H
+
+    try:
+        # args[0] should contain the time
+        due = float(context.args[0])
+        if due < 0:
+            await update.effective_message.reply_text("Must be positive.")
+            #return ConversationHandler.END
+        elif due < context.user_data["REMINDER_DUE_MINIMAL_H"]:
+            await update.effective_message.reply_text(f'Must be not less than minimal value, which is set to {context.user_data["REMINDER_DUE_MINIMAL_H"]} hours.')
+            #return ConversationHandler.END
+        else:
+            context.user_data["REMINDER_DUE_MAXIMAL_H"] = due
+    except (IndexError, ValueError):
+        await update.effective_message.reply_text("Usage: /setup_reminder_due_max <hours>")
+        #return ConversationHandler.END
+
+
+async def setup_reminder_due_min(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # set max time if not set to compare
+    if context.user_data.get("REMINDER_DUE_MAXIMAL_H") is None:
+        context.user_data["REMINDER_DUE_MAXIMAL_H"] = DUE_MAXIMAL_H
+
+    try:
+        # args[0] should contain the time
+        due = float(context.args[0])
+        if due < 0:
+            await update.effective_message.reply_text("Must be positive.")
+            #return ConversationHandler.END
+        elif due > context.user_data["REMINDER_DUE_MAXIMAL_H"]:
+            await update.effective_message.reply_text(f'Must be not more than maximal value, which is set to {context.user_data["REMINDER_DUE_MAXIMAL_H"]} hours.')
+        else:
+            context.user_data["REMINDER_DUE_MINIMAL_H"] = due
+    except (IndexError, ValueError):
+        await update.effective_message.reply_text("Usage: /setup_reminder_due_min <hours>")
+        #return ConversationHandler.END
+
+
 async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add a job to the queue."""
     chat_id = update.effective_message.chat_id
@@ -176,7 +220,17 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     job_removed = remove_job_if_exists(str(chat_id), context)
 
     hour2sec = 60 * 60  # [h -> s]
-    due = np.random.uniform(low=DUE_MINIMAL_H * hour2sec, high=DUE_MAXIMAL_H * hour2sec)
+    low  = DUE_MINIMAL_H * hour2sec
+    high = DUE_MAXIMAL_H * hour2sec
+
+    """
+    if context.user_data["REMINDER_DUE_MINIMAL_H"]:
+        low = context.user_data["REMINDER_DUE_MINIMAL_H"] * hour2sec
+    if context.user_data["REMINDER_DUE_MAXIMAL_H"]:
+        high = context.user_data["REMINDER_DUE_MAXIMAL_H"] * hour2sec
+    """
+    
+    due = np.random.uniform(low=low, high=high)
     context.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id), data=due)
 
     #text = f"Thanks! I'll remember that!\nI will send you a reminder in {DUE_MINIMAL_H}-{DUE_MAXIMAL_H} hours."
@@ -197,8 +251,8 @@ async def get_mood_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     message_text = update.message.text
     mode_score = float(message_text)
 
-    context.user_data.clear()
-    context.user_data['mood_score'] = mode_score
+    context.chat_data.clear()
+    context.chat_data['mood_score'] = mode_score
 
     await update.message.reply_text(
         text=f"Thanks, I got your mood score which is {message_text}. What's your emotion?",
@@ -211,7 +265,7 @@ async def get_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     chat_id = update.effective_chat.id
     message_text = update.message.text
 
-    context.user_data[message_text] = emotions_list[message_text]
+    context.chat_data[message_text] = emotions_list[message_text]
 
     #await update.message.reply_text(
     #    text=f'Thanks, I got your emotion is {message_text}. Anything else?',
@@ -249,10 +303,10 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
     #message_text = update.message.text
 
-    mood_score = context.user_data["mood_score"]
+    mood_score = context.chat_data["mood_score"]
     
     # emotion_average function filters out any non-emotion related keys
-    selected_emotions = list(context.user_data.keys())
+    selected_emotions = list(context.chat_data.keys())
     selected_emotions.remove("mood_score")
     mean_valence, mean_arousal = calculate_emotion_average(selected_emotions=selected_emotions)
     point = (
@@ -291,9 +345,10 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 def main() -> None:
     # https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/persistentconversationbot.py
-    #persistence = PicklePersistence(filepath="howwasyourdaybot_data")
-    #application = Application.builder().token(token=TOKEN).persistence(persistence).build()
-    application = Application.builder().token(token=TOKEN).build()
+    persistence = JSONPersistence(file_path="data.json")
+    application = Application.builder().token(token=TOKEN).persistence(persistence).build()
+
+    #application = Application.builder().token(token=TOKEN).build()
 
     # setup filters
     filter_allowed_chat_ids = FilterAllowedChats(ALLOWED_CHAT_IDS)
@@ -329,6 +384,14 @@ def main() -> None:
     )
 
     application.add_handler(conv_handler)
+
+    application.add_handler(
+        CommandHandler("setup_reminder_due_max", setup_reminder_due_max)
+    )
+    application.add_handler(
+        CommandHandler("setup_reminder_due_min", setup_reminder_due_min)
+    )
+    
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
