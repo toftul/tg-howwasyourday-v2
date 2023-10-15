@@ -312,7 +312,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     point = (
         Point('emotion_measurement')
         .tag('user', update.effective_chat.id)
-        .field('mood_score', mood_score)
+        .field('mood_score', float(mood_score))
         .field('mean_valence', mean_valence)
         .field('mean_arousal', mean_arousal)
         .field('emotions', ', '.join(selected_emotions))
