@@ -52,11 +52,11 @@ class JSONPersistence(BasePersistence[Dict[Any, Any], Dict[Any, Any], Dict[Any, 
         pass
 
     async def update_user_data(self, user_id: int, data: Dict[Any, Any]) -> None:
-        self._data["user_data"][user_id] = data
+        self._data["user_data"][str(user_id)] = data
         self.save_data()
 
     async def update_chat_data(self, chat_id: int, data: Dict[Any, Any]) -> None:
-        self._data["chat_data"][chat_id] = data
+        self._data["chat_data"][str(chat_id)] = data
         self.save_data()
 
     async def update_bot_data(self, data: Dict[Any, Any]) -> None:
