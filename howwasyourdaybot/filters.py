@@ -8,7 +8,7 @@ class FilterAllowedChats(MessageFilter):
         self.allowed_chat_ids = allowed_chat_ids
 
     def filter(self, message: Message) -> bool:
-        if len(allowed_chat_ids) == 0:
+        if len(self.allowed_chat_ids) == 0:
             # if allowed chat ids string is empty then everyone can use the bot
             return True
         else:
