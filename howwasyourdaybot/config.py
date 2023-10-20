@@ -6,7 +6,10 @@ TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 #ALLOWED_CHAT_IDS_JSON = os.environ.get("ALLOWED_CHAT_IDS_JSON")
 #ALLOWED_CHAT_IDS = json.loads(ALLOWED_CHAT_IDS_JSON)
 #ALLOWED_CHAT_IDS = os.environ.get("ALLOWED_CHAT_IDS", default="").split(",")
-ALLOWED_CHAT_IDS = np.asarray(os.environ.get("ALLOWED_CHAT_IDS", default="").split(","), dtype=int)
+if os.environ.get("ALLOWED_CHAT_IDS", default="") != "":
+    ALLOWED_CHAT_IDS = np.asarray(os.environ.get("ALLOWED_CHAT_IDS", default="").split(","), dtype=int)
+else:
+    ALLOWED_CHAT_IDS = np.array([], dtype=int)
 lilya_id = int(os.environ.get("LILYA_ID"))
 INFLUXDB_TOKEN = os.environ.get("INFLUXDB_TOKEN")
 INFLUXDB_URL = os.environ.get("INFLUXDB_URL")
