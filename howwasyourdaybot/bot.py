@@ -188,6 +188,7 @@ async def setup_reminder_due_max(update: Update, context: ContextTypes.DEFAULT_T
             #return ConversationHandler.END
         else:
             context.user_data["REMINDER_DUE_MAXIMAL_H"] = due
+            await update.effective_message.reply_text(f'Got it! Maximal reminder due is set to {context.user_data["REMINDER_DUE_MAXIMAL_H"]} hours.')
     except (IndexError, ValueError):
         await update.effective_message.reply_text("Usage: /setup_reminder_due_max <hours>")
         #return ConversationHandler.END
@@ -208,6 +209,7 @@ async def setup_reminder_due_min(update: Update, context: ContextTypes.DEFAULT_T
             await update.effective_message.reply_text(f'Must be not more than maximal value, which is set to {context.user_data["REMINDER_DUE_MAXIMAL_H"]} hours.')
         else:
             context.user_data["REMINDER_DUE_MINIMAL_H"] = due
+            await update.effective_message.reply_text(f'Got it! Minimal reminder due is set to {context.user_data["REMINDER_DUE_MINIMAL_H"]} hours.')
     except (IndexError, ValueError):
         await update.effective_message.reply_text("Usage: /setup_reminder_due_min <hours>")
         #return ConversationHandler.END
@@ -223,12 +225,10 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     low  = DUE_MINIMAL_H * hour2sec
     high = DUE_MAXIMAL_H * hour2sec
 
-    """
     if context.user_data["REMINDER_DUE_MINIMAL_H"]:
         low = context.user_data["REMINDER_DUE_MINIMAL_H"] * hour2sec
     if context.user_data["REMINDER_DUE_MAXIMAL_H"]:
         high = context.user_data["REMINDER_DUE_MAXIMAL_H"] * hour2sec
-    """
     
     due = np.random.uniform(low=low, high=high)
     context.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id), data=due)
