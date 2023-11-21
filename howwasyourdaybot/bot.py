@@ -342,6 +342,16 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
     #return STATE_GET_MOOD_SCORE
 
+# to handel bot restarts
+def schedule_reminders(application, chat_ids):
+    hour2sec = 60 * 60  # [h -> s]
+    low  = DUE_MINIMAL_H * hour2sec
+    high = DUE_MAXIMAL_H * hour2sec
+
+    for chat_id in chat_ids:
+        due = np.random.uniform(low=low, high=high)
+        application.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id), data=due)
+
 
 def main() -> None:
     # https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/persistentconversationbot.py
@@ -349,6 +359,9 @@ def main() -> None:
     application = Application.builder().token(token=TOKEN).persistence(persistence).build()
 
     #application = Application.builder().token(token=TOKEN).build()
+
+    # reset all reminders after restart
+    schedule_reminders(application, ALLOWED_CHAT_IDS)
 
     # setup filters
     filter_allowed_chat_ids = FilterAllowedChats(ALLOWED_CHAT_IDS)
