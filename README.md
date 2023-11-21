@@ -76,4 +76,4 @@ Don't forget to make `gh auth login`.
 
 ## TODO
 
-1. Settings for the reminder frequency per user
+1. Statistics inside the bot
