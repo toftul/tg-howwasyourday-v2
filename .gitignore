@@ -3,6 +3,7 @@ poetry.lock
 emotions.png
 data.json
 .DS_Store
+stats_*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
