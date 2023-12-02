@@ -12,6 +12,7 @@ import os
 import logging
 import random
 import numpy as np
+from icecream import ic
 from datetime import datetime
 
 # bot imports
@@ -222,13 +223,8 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     job_removed = remove_job_if_exists(str(chat_id), context)
 
     hour2sec = 60 * 60  # [h -> s]
-    low  = DUE_MINIMAL_H * hour2sec
-    high = DUE_MAXIMAL_H * hour2sec
-
-    if context.user_data["REMINDER_DUE_MINIMAL_H"]:
-        low = context.user_data["REMINDER_DUE_MINIMAL_H"] * hour2sec
-    if context.user_data["REMINDER_DUE_MAXIMAL_H"]:
-        high = context.user_data["REMINDER_DUE_MAXIMAL_H"] * hour2sec
+    low  = context.user_data.get("REMINDER_DUE_MINIMAL_H", DUE_MINIMAL_H) * hour2sec
+    high = context.user_data.get("REMINDER_DUE_MAXIMAL_H", DUE_MAXIMAL_H) * hour2sec
     
     due = np.random.uniform(low=low, high=high)
     context.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id), data=due)
@@ -342,6 +338,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
     #return STATE_GET_MOOD_SCORE
 
+
 # to handel bot restarts
 def schedule_reminders(application, chat_ids):
     hour2sec = 60 * 60  # [h -> s]
@@ -349,8 +346,12 @@ def schedule_reminders(application, chat_ids):
     high = DUE_MAXIMAL_H * hour2sec
 
     for chat_id in chat_ids:
-        due = np.random.uniform(low=low, high=high)
-        application.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id), data=due)
+        current_jobs = application.job_queue.get_jobs_by_name(str(chat_id))
+        for job in current_jobs:
+            job.schedule_removal()
+
+        due = int(np.random.uniform(low=low, high=high))
+        application.job_queue.run_once(alarm, due, chat_id=int(chat_id), name=str(chat_id), data=due)
 
 
 def main() -> None:
@@ -361,6 +362,8 @@ def main() -> None:
     #application = Application.builder().token(token=TOKEN).build()
 
     # reset all reminders after restart
+
+    #application.job_queue.run_once(alarm, when=10, chat_id=63688320, name=str(63688320))
     schedule_reminders(application, ALLOWED_CHAT_IDS)
 
     # setup filters
@@ -405,7 +408,6 @@ def main() -> None:
         CommandHandler("setup_reminder_due_min", setup_reminder_due_min)
     )
     
-
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
