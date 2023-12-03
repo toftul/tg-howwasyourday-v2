@@ -70,6 +70,7 @@ from filters import FilterAllowedChats, FilterEmotions, FilterIsDigit
 client = influxdb_client.InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
 write_api = client.write_api(write_options=SYNCHRONOUS)
 
+
 # keyboard layouts
 keyboard_mood_layout = [
     ["0"],
@@ -92,7 +93,7 @@ keyboard_mood_markup = ReplyKeyboardMarkup(
 
 num_columns = 3
 emotion_keys = list(emotions_list.keys())
-keyboard_emotion_layout = [["Done", "Show Russel map"]] + [emotion_keys[i:i+num_columns] for i in range(0, len(emotion_keys), num_columns)]
+keyboard_emotion_layout = [["Done"]] + [emotion_keys[i:i+num_columns] for i in range(0, len(emotion_keys), num_columns)]
 """
 Gives something like
 [['Done'],
@@ -128,30 +129,59 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     return STATE_GET_MOOD_SCORE
 
+async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    return 0
 
-async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    # send emotions.png
-    chat_id = update.effective_chat.id
+async def show_russell_map(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # map caption
+    map_caption = "Map of emotions based on the [\(Russel, 1980\)](https://doi.org/10.1037/h0077714)\."
     image_filename = 'emotions.png'
     try:
-        with open('emotions.png', 'rb') as image_file:
+        with open(image_filename, 'rb') as image_file:
             await update.message.reply_photo(
                 photo=image_file,
-                caption="Based on the (Russel, 1980)"
+                caption=help_text, #map_caption,
+                parse_mode=constants.ParseMode.MARKDOWN_V2
             )
     except FileNotFoundError:
         # Handle the case where the image file is not found
         logging.info(f"Image {image_filename} is not found. Creating one.")
         # create an image
         plot_emotions()
-        with open('emotions.png', 'rb') as image_file:
+        with open(image_filename, 'rb') as image_file:
             await update.message.reply_photo(
                 photo=image_file,
-                caption="Based on the (Russel, 1980)"
+                caption=map_caption,
+                parse_mode=constants.ParseMode.MARKDOWN_V2
             )
 
-    return STATE_SELECT_EMOTIONS
-    
+async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # help message
+    help_text = """
+*How Was Your Day Bot*
+
+This bot helps you in tracking your mood score and emotions\. Emotional measurements are based on Russell's arousal\-valence [theory](https://doi.org/10.1037/h0077714) from 1980\. The bot prompts you to:
+
+\- Provide your mood score on a scale from \-10 to \+10\.
+\- Share your current emotional state\. Feel free to pick as many emotions as you are feeling at the moment\.
+
+The bot will ask you again 3\-8 hours later, and you can customize the reminder window\.
+
+*Commands*
+
+\- /settings \- bot settings
+\- /get\_stats \- get statistics
+\- /show\_russell\_map \- show Russell map of emotions
+\- /help \- show this message
+
+Created by Ivan Toftul @toftl
+    """
+
+    # send emotions.png
+    chat_id = update.effective_chat.id
+    await update.effective_message.reply_markdown_v2(
+        text=help_text
+    )
 
 
 async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -288,8 +318,8 @@ def calculate_emotion_average(selected_emotions):
 
         mean_valence = np.mean(valence_values)
         mean_arousal = np.mean(arousal_values)
-        print(valence_values)
-        print(arousal_values)
+        #print(valence_values)
+        #print(arousal_values)
         return mean_valence, mean_arousal
     else:
         return 0.0, 0.0
@@ -372,6 +402,7 @@ def main() -> None:
     filter_isgidit = FilterIsDigit()
 
     start_handler = CommandHandler("start", start)
+    
     mood_handler = MessageHandler(
         filters.TEXT & filter_allowed_chat_ids & filter_isgidit,
         get_mood_score
@@ -381,7 +412,6 @@ def main() -> None:
         get_emotions
     )
     done_handler = MessageHandler(filters.Regex("^Done$"), done)
-    show_map_handler = MessageHandler(filters.Regex("^Show Russel map$"), get_help)
 
     conv_handler = ConversationHandler(
         entry_points=[start_handler, mood_handler],
@@ -390,8 +420,7 @@ def main() -> None:
                 mood_handler
             ],
             STATE_SELECT_EMOTIONS: [
-                emotion_handler,
-                show_map_handler
+                emotion_handler
             ]
         },
         fallbacks=[done_handler],
@@ -399,14 +428,17 @@ def main() -> None:
         #persistent=True
     )
 
-    application.add_handler(conv_handler)
+    
 
-    application.add_handler(
-        CommandHandler("setup_reminder_due_max", setup_reminder_due_max)
-    )
-    application.add_handler(
+    application.add_handler(conv_handler)
+    
+    application.add_handlers([
+        CommandHandler("help", get_help),
+        CommandHandler("settings", settings),
+        CommandHandler("show_russell_map", show_russell_map),
+        CommandHandler("setup_reminder_due_max", setup_reminder_due_max),
         CommandHandler("setup_reminder_due_min", setup_reminder_due_min)
-    )
+    ])
     
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
