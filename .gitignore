@@ -1,6 +1,6 @@
 # custom 
 poetry.lock
-emotions.png
+emotions*.png
 data.json
 .DS_Store
 stats_*.png
