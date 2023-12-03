@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from emotions import emotions_list
 
-
+ 
 def plot_emotions():
     emotions = list(emotions_list.keys())
     valence = [emotion_data["valence"] for emotion_data in emotions_list.values()]
@@ -14,14 +14,18 @@ def plot_emotions():
     for i, emotion in enumerate(emotions):
         plt.annotate(emotion, (valence[i], arousal[i]), textcoords="offset points", xytext=(0, 10), ha='center')
 
-    plt.xlabel('Valence')
-    plt.ylabel('Arousal')
+    #plt.gca().set_aspect('equal', adjustable='box')
+
+    plt.xlabel('Valence', weight='bold')
+    plt.ylabel('Arousal', weight='bold')
+
     plt.title('Emotions')
     plt.xlim(-1.2, 1.2)
     plt.ylim(-1.2, 1.2)
     plt.tick_params(direction='in')
-    plt.xticks([-1, 0, 1])
-    plt.yticks([-1, 0, 1])
+
+    plt.xticks([-1, 0, 1], ['Negative', 'Neutral', 'Positive'])
+    plt.yticks([-1, 0, 1], ['Weak', 'Neutral', 'Strong'])
     #plt.grid(True, linestyle='--', alpha=0.6)
     plt.gca().set_aspect('equal', adjustable='box')
     plt.tight_layout()
