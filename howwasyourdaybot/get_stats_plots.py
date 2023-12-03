@@ -122,7 +122,7 @@ def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_r
     |> filter(fn: (r) => r["_field"] == "mean_arousal" or r["_field"] == "mean_valence")
     |> filter(fn: (r) => r["user"] == "{chat_id}")
     """
-    query_average = f"""from(bucket: "howwasyourday")
+    query_average = f"""from(bucket: "{INFLUXDB_BUCKET}")
     |> range(start: {range_start}, stop: {range_stop})
     |> filter(fn: (r) => r["_measurement"] == "emotion_measurement")
     |> filter(fn: (r) => r["_field"] == "mean_arousal" or r["_field"] == "mean_valence")
@@ -133,13 +133,13 @@ def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_r
     timestamps, timestamps_numeric, mean_arousal, mean_valence = get_arousal_and_valence(query)
     timestamps_average, timestamps_numeric_average, mean_arousal_average, mean_valence_average = get_arousal_and_valence(query_average)
 
-    query_mood_score = f"""from(bucket: "howwasyourday")
+    query_mood_score = f"""from(bucket: "{INFLUXDB_BUCKET}")
     |> range(start: {range_start}, stop: {range_stop})
     |> filter(fn: (r) => r["_measurement"] == "emotion_measurement")
     |> filter(fn: (r) => r["_field"] == "mood_score")
     |> filter(fn: (r) => r["user"] == "{chat_id}")
     """ 
-    query_mood_score_all = f"""from(bucket: "howwasyourday")
+    query_mood_score_all = f"""from(bucket: "{INFLUXDB_BUCKET}")
     |> range(start: -10y)
     |> filter(fn: (r) => r["_measurement"] == "emotion_measurement")
     |> filter(fn: (r) => r["_field"] == "mood_score")
