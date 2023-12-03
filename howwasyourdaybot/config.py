@@ -24,3 +24,5 @@ namesForLilya = json.loads(namesForLilya_JSON)
 
 remindersList_JSON = os.environ.get("REMINDERS_LIST_JSON")
 remindersList = json.loads(remindersList_JSON)
+
+DEFAULT_LANG = os.environ.get("DEFAULT_LANG", "en")

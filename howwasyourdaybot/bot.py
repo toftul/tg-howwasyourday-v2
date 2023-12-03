@@ -61,10 +61,22 @@ from config import (
     INFLUXDB_BUCKET,
     DUE_MINIMAL_H,
     DUE_MAXIMAL_H,
+    DEFAULT_LANG
 )
 
 from emotions import emotions_list
 from plot_emotions import plot_emotions
+from get_stats_plots import generate_stats_plot
+# translations
+from phrases_multilang import (
+    bot_phases_dict, 
+    emotions_translations, 
+    range_due_options_in_hours,
+    index_to_words,
+    word_to_index,
+    stats_time_ranges
+)
+
 from filters import FilterAllowedChats, FilterEmotions, FilterIsDigit
 
 client = influxdb_client.InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
@@ -121,66 +133,297 @@ logger = logging.getLogger(__name__)
 # Consersation 
 STATE_GET_MOOD_SCORE, STATE_SELECT_EMOTIONS = range(2)
 
+STATE_SETTINGS_CHOOSING, STATE_SETTINGS_DUE, STATE_SETTINGS_TOGGLE_REMINDERS, STATE_SETTINGS_LANGUAGE = range(4)
+
+STATE_STATS_CHOOSING = range(1)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
     await update.message.reply_text(
-        text="ho-ho!",
-        reply_markup=keyboard_mood_markup
+        text=bot_phases_dict["start_hello"]["en"] + "\n\n" + bot_phases_dict["start_hello"]["ru"],
+        reply_markup=keyboard_mood_markup,
+        parse_mode=bot_phases_dict["start_hello"]["parse_mode"]
     )
     return STATE_GET_MOOD_SCORE
 
-async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    return 0
+
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
+    await update.message.reply_text(
+        text=bot_phases_dict["okay"][lang],
+        parse_mode=bot_phases_dict["okay"]["parse_mode"]
+    )
+    return ConversationHandler.END
+
+
+async def get_stats_choosing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
+
+    keyboard_range = [
+        [InlineKeyboardButton(stats_time_ranges[stats_time_range_key]["label"][lang], callback_data=stats_time_range_key)] for stats_time_range_key in stats_time_ranges.keys()
+    ]
+    keyboard_range.append(
+        [InlineKeyboardButton(bot_phases_dict["cancel"][lang], callback_data="cancel")]
+    )
+    range_reply_markup = InlineKeyboardMarkup(keyboard_range)
+
+    await update.message.reply_text(
+        text=bot_phases_dict["choose_stats_range"][lang],
+        reply_markup=range_reply_markup,
+        parse_mode=bot_phases_dict["choose_stats_range"]["parse_mode"]
+    )
+    
+    return STATE_STATS_CHOOSING
+
+
+async def handel_stats_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
+    query = update.callback_query
+    user_choice_callback_data = query.data
+    chat_id = update.effective_chat.id
+
+    if user_choice_callback_data in stats_time_ranges.keys():
+        try:
+            await query.edit_message_text(
+                text=bot_phases_dict["generating_stats"][lang],
+                parse_mode=bot_phases_dict["generating_stats"]["parse_mode"]
+            )
+            stats_plot_file = generate_stats_plot(
+                chat_id=chat_id,
+                range_start=stats_time_ranges[user_choice_callback_data]["range_start"],
+                range_stop=stats_time_ranges[user_choice_callback_data]["range_stop"]
+            )
+            with open(stats_plot_file, 'rb') as image_file:
+                await update.effective_message.reply_photo(
+                    photo=image_file,
+                    caption=stats_time_ranges[user_choice_callback_data]["label"][lang],
+                    parse_mode=stats_time_ranges[user_choice_callback_data]["label"]["parse_mode"]
+                )
+            return ConversationHandler.END
+        except:
+            logging.error("Cannot generate stats plot.")
+            return ConversationHandler.END
+    elif user_choice_callback_data == "cancel":
+        await query.edit_message_text(
+            text=bot_phases_dict["canceled"][lang],
+            parse_mode=bot_phases_dict["canceled"]["parse_mode"]
+        )
+        return ConversationHandler.END
+    else:
+        return ConversationHandler.END
+
+
+def get_reply_markup_main_settings(lang="en"):
+    settings_items_keyboard = [
+        [InlineKeyboardButton(bot_phases_dict["reminders_due"][lang], callback_data="reminders_due")],
+        [InlineKeyboardButton(bot_phases_dict["toggle_reminders"][lang], callback_data="toggle_reminders")],
+        [InlineKeyboardButton(bot_phases_dict["change_language"][lang], callback_data="change_language")],
+        [InlineKeyboardButton(bot_phases_dict["cancel"][lang], callback_data="cancel")],
+    ]
+    reply_markup = InlineKeyboardMarkup(settings_items_keyboard)
+    return reply_markup
+
+async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
+    reply_markup = get_reply_markup_main_settings(lang)
+
+    await update.message.reply_text(
+        text=bot_phases_dict["choose_settings"][lang],
+        reply_markup=reply_markup,
+        parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
+    )
+
+    return STATE_SETTINGS_CHOOSING
+
+
+async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
+    query = update.callback_query
+    user_choice_callback_data = query.data
+
+    if user_choice_callback_data == "reminders_due":
+        # create due ranges
+        reminders_range_options = []
+        for due_range in range_due_options_in_hours:
+            reminders_range_options.append(
+                bot_phases_dict["range_due"][lang].format(due_min=due_range[0], due_max=due_range[1])
+            )
+
+        keyboard_range = [
+            [InlineKeyboardButton(reminders_range_options[i], callback_data=index_to_words[i])] for i in range(len(range_due_options_in_hours))
+        ]
+        keyboard_range.append(
+            [InlineKeyboardButton(bot_phases_dict["back"][lang], callback_data="back")]
+        )
+        range_reply_markup = InlineKeyboardMarkup(keyboard_range)
+
+        await query.edit_message_text(
+            text=bot_phases_dict["change_due_message"][lang],
+            parse_mode=bot_phases_dict["change_due_message"]["parse_mode"],
+            reply_markup=range_reply_markup
+        )
+        return STATE_SETTINGS_DUE
+
+    elif user_choice_callback_data == "toggle_reminders":
+        keyboard_toggle_reminders = [
+            [InlineKeyboardButton(bot_phases_dict["on"][lang], callback_data="reminders_on")],
+            [InlineKeyboardButton(bot_phases_dict["off"][lang], callback_data="reminders_off")],
+            [InlineKeyboardButton(bot_phases_dict["back"][lang], callback_data="back")]
+        ]
+        toggle_reply_markup = InlineKeyboardMarkup(keyboard_toggle_reminders)
+        await query.edit_message_text(
+            text=bot_phases_dict["toggle_reminders"][lang],
+            parse_mode=bot_phases_dict["toggle_reminders"]["parse_mode"],
+            reply_markup=toggle_reply_markup
+        )
+        return STATE_SETTINGS_TOGGLE_REMINDERS
+
+    elif user_choice_callback_data == "change_language":
+        keyboard_toggle_reminders = [
+            [InlineKeyboardButton(bot_phases_dict["language_name_ru"][lang], callback_data="change_language_to_ru")],
+            [InlineKeyboardButton(bot_phases_dict["language_name_en"][lang], callback_data="change_language_to_en")],
+            [InlineKeyboardButton(bot_phases_dict["back"][lang], callback_data="back")]
+        ]
+        toggle_reply_markup = InlineKeyboardMarkup(keyboard_toggle_reminders)
+        await query.edit_message_text(
+            text=bot_phases_dict["change_language"][lang],
+            parse_mode=bot_phases_dict["change_language"]["parse_mode"],
+            reply_markup=toggle_reply_markup
+        )
+
+        return STATE_SETTINGS_LANGUAGE
+    elif user_choice_callback_data == "cancel":
+        await query.edit_message_text(
+            text=bot_phases_dict["canceled"][lang],
+            parse_mode=bot_phases_dict["canceled"]["parse_mode"]
+        )
+        return ConversationHandler.END
+    else:
+        return ConversationHandler.END
+
+
+async def handel_toggle_reminders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
+    query = update.callback_query
+    user_choice_callback_data = query.data
+
+    if user_choice_callback_data == "back":
+        lang = context.user_data.get("language", DEFAULT_LANG)
+        reply_markup = get_reply_markup_main_settings(lang)
+
+        await query.edit_message_text(
+            text=bot_phases_dict["choose_settings"][lang],
+            reply_markup=reply_markup,
+            parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
+        )
+        return STATE_SETTINGS_CHOOSING
+    elif user_choice_callback_data == "reminders_on":
+        context.user_data["reminders"] = "on"
+        await query.edit_message_text(
+            text=bot_phases_dict["reminders_on"][lang],
+            parse_mode=bot_phases_dict["reminders_on"]["parse_mode"]
+        )
+        return ConversationHandler.END
+    elif user_choice_callback_data == "reminders_off":
+        context.user_data["reminders"] = "off"
+        await query.edit_message_text(
+            text=bot_phases_dict["reminders_off"][lang],
+            parse_mode=bot_phases_dict["reminders_off"]["parse_mode"]
+        )
+        return ConversationHandler.END
+    else:
+        return ConversationHandler.END
+
+
+async def handel_language_change(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
+    query = update.callback_query
+    user_choice_callback_data = query.data
+
+    if user_choice_callback_data == "back":
+        lang = context.user_data.get("language", DEFAULT_LANG)
+        reply_markup = get_reply_markup_main_settings(lang)
+
+        await query.edit_message_text(
+            text=bot_phases_dict["choose_settings"][lang],
+            reply_markup=reply_markup,
+            parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
+        )
+        return STATE_SETTINGS_CHOOSING
+    elif user_choice_callback_data == "change_language_to_ru":
+        context.user_data["language"] = "ru"
+        await query.edit_message_text(
+            text=bot_phases_dict["language_is_set_to_ru"]["ru"],
+            parse_mode=bot_phases_dict["language_is_set_to_ru"]["parse_mode"]
+        )
+        return ConversationHandler.END
+    elif user_choice_callback_data == "change_language_to_en":
+        context.user_data["language"] = "en"
+        await query.edit_message_text(
+            text=bot_phases_dict["language_is_set_to_en"]["en"],
+            parse_mode=bot_phases_dict["language_is_set_to_en"]["parse_mode"]
+        )
+        return ConversationHandler.END
+    else:
+        return ConversationHandler.END
+
+
+async def handel_due_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
+    query = update.callback_query
+    user_choice_callback_data = query.data
+
+    if user_choice_callback_data == "back":
+        lang = context.user_data.get("language", DEFAULT_LANG)
+        reply_markup = get_reply_markup_main_settings(lang)
+
+        await query.edit_message_text(
+            text=bot_phases_dict["choose_settings"][lang],
+            reply_markup=reply_markup,
+            parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
+        )
+        return STATE_SETTINGS_CHOOSING
+    elif user_choice_callback_data in word_to_index.keys():
+        selected_range = np.asarray(range_due_options_in_hours[word_to_index[user_choice_callback_data]], dtype=float)
+
+        ic(
+            selected_range,
+            selected_range.min(),
+            selected_range.max()
+        )
+
+        context.user_data["REMINDER_DUE_MINIMAL_H"] = selected_range.min()
+        context.user_data["REMINDER_DUE_MAXIMAL_H"] = selected_range.max()
+        
+        await query.edit_message_text(
+            text=bot_phases_dict["reminders_are_set"][lang].format(due_min=selected_range.min(), due_max=selected_range.max()),
+            parse_mode=bot_phases_dict["reminders_are_set"]["parse_mode"]
+        )
+        return ConversationHandler.END
+    else:
+        return ConversationHandler.END
+
 
 async def show_russell_map(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # map caption
-    map_caption = "Map of emotions based on the [\(Russel, 1980\)](https://doi.org/10.1037/h0077714)\."
-    image_filename = 'emotions.png'
+    image_base_filename = 'emotions'
+    lang = context.user_data.get("language", DEFAULT_LANG)
     try:
+        image_filename = plot_emotions(base_filename=image_base_filename, lang=lang)
         with open(image_filename, 'rb') as image_file:
             await update.message.reply_photo(
                 photo=image_file,
-                caption=help_text, #map_caption,
-                parse_mode=constants.ParseMode.MARKDOWN_V2
+                caption=bot_phases_dict["map_caption"][lang],
+                parse_mode=bot_phases_dict["map_caption"]["parse_mode"]
             )
-    except FileNotFoundError:
-        # Handle the case where the image file is not found
-        logging.info(f"Image {image_filename} is not found. Creating one.")
-        # create an image
-        plot_emotions()
-        with open(image_filename, 'rb') as image_file:
-            await update.message.reply_photo(
-                photo=image_file,
-                caption=map_caption,
-                parse_mode=constants.ParseMode.MARKDOWN_V2
-            )
+    except:
+        logging.error("Cannot create image emotions map.")
+
 
 async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # help message
-    help_text = """
-*How Was Your Day Bot*
-
-This bot helps you in tracking your mood score and emotions\. Emotional measurements are based on Russell's arousal\-valence [theory](https://doi.org/10.1037/h0077714) from 1980\. The bot prompts you to:
-
-\- Provide your mood score on a scale from \-10 to \+10\.
-\- Share your current emotional state\. Feel free to pick as many emotions as you are feeling at the moment\.
-
-The bot will ask you again 3\-8 hours later, and you can customize the reminder window\.
-
-*Commands*
-
-\- /settings \- bot settings
-\- /get\_stats \- get statistics
-\- /show\_russell\_map \- show Russell map of emotions
-\- /help \- show this message
-
-Created by Ivan Toftul @toftl
-    """
-
-    # send emotions.png
-    chat_id = update.effective_chat.id
-    await update.effective_message.reply_markdown_v2(
-        text=help_text
+    lang = context.user_data.get("language", DEFAULT_LANG)
+    await update.message.reply_text(
+        text=bot_phases_dict["help_text"][lang],
+        parse_mode=bot_phases_dict["help_text"]["parse_mode"]
     )
 
 
@@ -189,7 +432,8 @@ async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
     reminderText = random.choice(remindersList)
     await context.bot.send_message(
         job.chat_id,
-        text=reminderText
+        text=reminderText,
+        reply_markup=keyboard_mood_markup
     )
 
 
@@ -248,19 +492,21 @@ async def setup_reminder_due_min(update: Update, context: ContextTypes.DEFAULT_T
 
 async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add a job to the queue."""
-    chat_id = update.effective_message.chat_id
+    if context.user_data.get("reminders", "on") != "off":
+        chat_id = update.effective_message.chat_id
 
-    job_removed = remove_job_if_exists(str(chat_id), context)
+        job_removed = remove_job_if_exists(str(chat_id), context)
+        job_removed_extra = remove_job_if_exists(str(chat_id)+"_extra", context)
+        
+        hour2sec = 60 * 60  # [h -> s]
+        low  = context.user_data.get("REMINDER_DUE_MINIMAL_H", DUE_MINIMAL_H) * hour2sec
+        high = context.user_data.get("REMINDER_DUE_MAXIMAL_H", DUE_MAXIMAL_H) * hour2sec
+        
+        due = np.random.uniform(low=low, high=high)
+        context.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id), data=due)
+        # second reminder
+        context.job_queue.run_once(alarm, 2*due, chat_id=chat_id, name=str(chat_id)+"_extra", data=due)
 
-    hour2sec = 60 * 60  # [h -> s]
-    low  = context.user_data.get("REMINDER_DUE_MINIMAL_H", DUE_MINIMAL_H) * hour2sec
-    high = context.user_data.get("REMINDER_DUE_MAXIMAL_H", DUE_MAXIMAL_H) * hour2sec
-    
-    due = np.random.uniform(low=low, high=high)
-    context.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id), data=due)
-
-    #text = f"Thanks! I'll remember that!\nI will send you a reminder in {DUE_MINIMAL_H}-{DUE_MAXIMAL_H} hours."
-    #await update.effective_message.reply_text(text)
 
 async def unknown_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
@@ -326,6 +572,7 @@ def calculate_emotion_average(selected_emotions):
 
 
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
     chat_id = update.effective_chat.id
     #message_text = update.message.text
 
@@ -357,7 +604,11 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
 
     write_api.write(bucket=INFLUXDB_BUCKET, record=points)
-    done_text="Writing down your mood score and emotions. I will ask again you later. See ya!"
+    if context.user_data.get("reminders", "on") == "on":
+        done_text = bot_phases_dict["done_text"][lang]
+    else:
+        done_text = bot_phases_dict["done_text_no_reminders"][lang]
+
     if chat_id == lilya_id:
         done_text = "Хорошо, " + random.choice(namesForLilya) + "! Я записал. Потом спрошу еще!"
     await update.message.reply_text(
@@ -387,7 +638,8 @@ def schedule_reminders(application, chat_ids):
 def main() -> None:
     # https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/persistentconversationbot.py
     persistence = JSONPersistence(file_path="data.json")
-    application = Application.builder().token(token=TOKEN).persistence(persistence).build()
+    application = Application.builder().token(token=TOKEN).concurrent_updates(False).persistence(persistence).build()
+    #application = Application.builder().token(token=TOKEN).persistence(persistence).build()
 
     #application = Application.builder().token(token=TOKEN).build()
 
@@ -412,6 +664,7 @@ def main() -> None:
         get_emotions
     )
     done_handler = MessageHandler(filters.Regex("^Done$"), done)
+    cancel_handler = CommandHandler("cancel", cancel)
 
     conv_handler = ConversationHandler(
         entry_points=[start_handler, mood_handler],
@@ -423,18 +676,47 @@ def main() -> None:
                 emotion_handler
             ]
         },
-        fallbacks=[done_handler],
+        fallbacks=[done_handler, cancel_handler],
         #name='emotional_handler',
         #persistent=True
     )
 
-    
+    show_settings_handler = CommandHandler("settings", show_settings)
 
-    application.add_handler(conv_handler)
+    settings_conv_handler = ConversationHandler(
+        entry_points=[show_settings_handler],
+        states={
+            STATE_SETTINGS_CHOOSING: [
+                CallbackQueryHandler(handle_settings_choice)
+            ],
+            STATE_SETTINGS_TOGGLE_REMINDERS: [
+                CallbackQueryHandler(handel_toggle_reminders)
+            ],
+            STATE_SETTINGS_LANGUAGE: [
+                CallbackQueryHandler(handel_language_change)
+            ],
+            STATE_SETTINGS_DUE: [
+                CallbackQueryHandler(handel_due_settings)
+            ],
+        },
+        fallbacks=[cancel_handler]
+    )
+    
+    stats_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("get_stats", get_stats_choosing)],
+        states={
+            STATE_STATS_CHOOSING: [
+                CallbackQueryHandler(handel_stats_choice)
+            ]
+        },
+        fallbacks=[cancel_handler]
+    )
     
     application.add_handlers([
+        conv_handler,
+        settings_conv_handler,
+        stats_conv_handler,
         CommandHandler("help", get_help),
-        CommandHandler("settings", settings),
         CommandHandler("show_russell_map", show_russell_map),
         CommandHandler("setup_reminder_due_max", setup_reminder_due_max),
         CommandHandler("setup_reminder_due_min", setup_reminder_due_min)

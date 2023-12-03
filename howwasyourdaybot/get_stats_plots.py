@@ -78,7 +78,7 @@ def confidence_ellipse(x, y, ax, n_std=3.0, facecolor='none', **kwargs):
     return ax.add_patch(ellipse)
 
 
-def generate_plot(chat_id, range_start='none', range_stop='now()', quick_range='7d'):
+def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_range='7d'):
     if range_start == 'none':
         range_start = '-' + quick_range
 
@@ -257,12 +257,14 @@ def generate_plot(chat_id, range_start='none', range_stop='now()', quick_range='
 
 
     plt.tight_layout()
-    plt.savefig(f'stats_{chat_id}.png')
-    #plt.show()
+    filename = f'stats_{chat_id}.png'
+    plt.savefig(filename)
+
+    return filename
 
 if __name__ == "__main__":
     chat_id = 63688320
-    generate_plot(
+    generate_stats_plot(
         chat_id, 
         range_start='none', 
         range_stop='now()', 

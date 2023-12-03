@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tg-howwasyourday-v2"
-version = "1.0.0"
+version = "1.1.0"
 description = "How was your day?"
 authors = ["Ivan <toftul.ivan@gmail.com>"]
 license = "MIT"
@@ -9,7 +9,7 @@ packages = [{include = "howwasyourdaybot"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-python-telegram-bot = {extras = ["job-queue"], version = "^20.5"}
+python-telegram-bot = {extras = ["callback-data", "job-queue"], version = "^20.7"}
 influxdb-client = "^1.37.0"
 matplotlib = "^3.8.0"
 pandas = "^2.1.3"
