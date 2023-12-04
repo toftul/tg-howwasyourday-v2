@@ -73,6 +73,11 @@ range_due_options_in_hours = [
 ]
 
 bot_phases_dict = {
+    "dont_know_emotion": {
+        "en": "I don't recognize this emotion. Anything else?",
+        "ru": "Я такой эмоции не знаю. Может что-нибудь ещё?",
+        "parse_mode": None,
+    },
     "generating_stats": {
         "en": "Generating plot for you...",
         "ru": "Строю график...",

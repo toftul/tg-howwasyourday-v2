@@ -90,7 +90,7 @@ def confidence_ellipse(x, y, ax, n_std=3.0, facecolor='none', **kwargs):
 
 def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_range='7d', lang=DEFAULT_LANG):
     # Set the desired language for date and time formatting
-    desired_language = lang_dict.get(lang, ""])
+    desired_language = lang_dict.get(lang, "")
     locale.setlocale(locale.LC_ALL, desired_language)
 
     if range_start == 'none':
@@ -263,7 +263,7 @@ def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_r
 
     axs['B'].set_xlim(-1.2, 1.2)
     axs['B'].set_ylim(-1.2, 1.2)
-    axs['B'].set_xticks([-1, 0, 1], [plot_words["negative"][lang], plot_words["neutral"][lang], plot_words["positive"][lang])
+    axs['B'].set_xticks([-1, 0, 1], [plot_words["negative"][lang], plot_words["neutral"][lang], plot_words["positive"][lang]])
     axs['B'].set_yticks([-1, 0, 1], [plot_words["weak"][lang], plot_words["neutral"][lang], plot_words["strong"][lang]])
     #plt.gca().set_aspect('equal', adjustable='box')
 

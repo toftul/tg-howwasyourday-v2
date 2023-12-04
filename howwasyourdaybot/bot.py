@@ -148,6 +148,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return STATE_GET_MOOD_SCORE
 
 
+def get_emotions_keyboard_markup(lang=DEFAULT_LANG):
+    num_columns = 3
+    emotion_keys = list(emotions_list.keys())
+    translated_emotions = []
+    for emotion_key in emotion_keys:
+        translated_emotions.append(emotions_translations[emotion_key][lang])
+
+    keyboard_emotion_layout = [[bot_phases_dict["done"][lang]]] + [translated_emotions[i:i+num_columns] for i in range(0, len(translated_emotions), num_columns)]
+    """
+    Gives something like
+    [['Done'],
+     ['Astonished', 'Excited', 'Happy'],
+     ['Pleased', 'Relaxed', 'Peaceful'],
+     ['Calm', 'Sleepy', 'Tired'],
+     ['Bored', 'Sad', 'Miserable'],
+     ['Nervous', 'Angry', 'Frustrated'],
+     ['Annoyed', 'Afraid']]
+    """
+    keyboard_emotion_markup = ReplyKeyboardMarkup(
+        keyboard=keyboard_emotion_layout,
+        resize_keyboard=False,
+        one_time_keyboard=False,
+    )
+    return keyboard_emotion_markup
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     lang = context.user_data.get("language", DEFAULT_LANG)
     await update.message.reply_text(
@@ -428,7 +453,7 @@ async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
-async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
+async def alarm(context: ContextTypes.DEFAULT_TYPE) -> int:
     job = context.job
     reminderText = random.choice(remindersList)
     await context.bot.send_message(
@@ -436,6 +461,7 @@ async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
         text=reminderText,
         reply_markup=keyboard_mood_markup
     )
+    return ConversationHandler.END
 
 
 def remove_job_if_exists(name: str, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -510,11 +536,14 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def unknown_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
     chat_id = update.effective_chat.id
     message_text = update.message.text
+    keyboard_emotion_markup = get_emotions_keyboard_markup(lang=lang)
     await update.message.reply_text(
-        text="I don't recognize this emotion. Anything else?",
-        reply_markup=keyboard_emotion_markup
+        text=bot_phases_dict["dont_know_emotion"][lang],
+        reply_markup=keyboard_emotion_markup,
+        parse_mode=bot_phases_dict["dont_know_emotion"]["parse_mode"]
     )
     return STATE_SELECT_EMOTIONS
 
@@ -528,6 +557,7 @@ async def get_mood_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.chat_data.clear()
     context.chat_data['mood_score'] = mode_score
 
+    keyboard_emotion_markup = get_emotions_keyboard_markup(lang=lang)
     await update.message.reply_text(
         text=bot_phases_dict["got_your_mood_score"][lang],
         reply_markup=keyboard_emotion_markup,
@@ -537,15 +567,14 @@ async def get_mood_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def get_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
     chat_id = update.effective_chat.id
-    message_text = update.message.text
+    message_text = translated_emotion_to_key(translated_emotion=update.message.text)
 
     context.chat_data[message_text] = emotions_list[message_text]
 
-    #await update.message.reply_text(
-    #    text=f'Thanks, I got your emotion is {message_text}. Anything else?',
-    #    reply_markup=keyboard_emotion_markup
-    #)
+    keyboard_emotion_markup = get_emotions_keyboard_markup(lang=lang)
+    
     await update.message.reply_text(
         text=bot_phases_dict["anything_else"][lang],
         reply_markup=keyboard_emotion_markup,
