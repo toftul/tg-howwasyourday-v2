@@ -8,13 +8,23 @@ import matplotlib.transforms as transforms
 import numpy as np
 import pandas as pd
 from emotions import emotions_list
+from phrases_multilang import plot_words, emotions_translations
+
+import locale
+
+lang_dict = {
+    "en": "en_AU",
+    "ru": "ru_RU"
+}
 
 from config import (
     INFLUXDB_TOKEN,
     INFLUXDB_URL,
     INFLUXDB_ORG,
     INFLUXDB_BUCKET,
+    DEFAULT_LANG
 )
+
 
 # influxdb imports
 import influxdb_client
@@ -78,7 +88,11 @@ def confidence_ellipse(x, y, ax, n_std=3.0, facecolor='none', **kwargs):
     return ax.add_patch(ellipse)
 
 
-def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_range='7d'):
+def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_range='7d', lang=DEFAULT_LANG):
+    # Set the desired language for date and time formatting
+    desired_language = lang_dict.get(lang, ""])
+    locale.setlocale(locale.LC_ALL, desired_language)
+
     if range_start == 'none':
         range_start = '-' + quick_range
 
@@ -200,10 +214,10 @@ def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_r
     ### MOOD HIST    ###
     ####################
 
-    axs['C'].hist(mood_score, alpha=0.5, range=(-10, 10), density=True, rwidth=0.6, bins=21, zorder=10, label='Recent')
-    axs['C'].hist(mood_score_all, alpha=0.5, range=(-10, 10), density=True, rwidth=1, bins=21, label='Requested')
+    axs['C'].hist(mood_score, alpha=0.5, range=(-10, 10), density=True, rwidth=0.6, bins=21, zorder=10, label=plot_words["requested"][lang])
+    axs['C'].hist(mood_score_all, alpha=0.5, range=(-10, 10), density=True, rwidth=1, bins=21, label=plot_words["all_time"][lang])
     axs['C'].legend()
-    axs['C'].set_xlabel('Mood score')
+    axs['C'].set_xlabel(plot_words["mood_score"][lang])
     axs['C'].set_yticks([])
 
     ####################
@@ -213,8 +227,8 @@ def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_r
     axs['A'].scatter(timestamps, mean_valence, s=10, alpha=0.4, edgecolor='none')
     axs['A'].scatter(timestamps, mean_arousal, s=10, alpha=0.4, edgecolor='none')
 
-    axs['A'].plot(timestamps_average, mean_valence_average, lw=2, label='Valence')
-    axs['A'].plot(timestamps_average, mean_arousal_average, lw=2, label='Arousal')
+    axs['A'].plot(timestamps_average, mean_valence_average, lw=2, label=plot_words["valence"][lang])
+    axs['A'].plot(timestamps_average, mean_arousal_average, lw=2, label=plot_words["arousal"][lang])
 
     axs['A'].legend()
 
@@ -244,17 +258,17 @@ def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_r
     arousal = [emotion_data["arousal"] for emotion_data in emotions_list.values()]
 
     for i, emotion in enumerate(emotions):
-        axs['B'].annotate(emotion, (valence[i], arousal[i]), textcoords="offset points", xytext=(0, 10), ha='center', color='gray')
+        #axs['B'].annotate(emotion, (valence[i], arousal[i]), textcoords="offset points", xytext=(0, 10), ha='center', color='gray')
+        axs['B'].annotate(emotions_translations[emotion][lang], (valence[i], arousal[i]), textcoords="offset points", xytext=(0, 10), ha='center', color='gray')
 
     axs['B'].set_xlim(-1.2, 1.2)
     axs['B'].set_ylim(-1.2, 1.2)
-    axs['B'].set_xticks([-1, 0, 1], ['Negative', 'Neutral', 'Positive'])
-    axs['B'].set_yticks([-1, 0, 1], ['Weak', 'Neutral', 'Strong'])
+    axs['B'].set_xticks([-1, 0, 1], [plot_words["negative"][lang], plot_words["neutral"][lang], plot_words["positive"][lang])
+    axs['B'].set_yticks([-1, 0, 1], [plot_words["weak"][lang], plot_words["neutral"][lang], plot_words["strong"][lang]])
     #plt.gca().set_aspect('equal', adjustable='box')
 
-    axs['B'].set_xlabel('Valence', weight='bold')
-    axs['B'].set_ylabel('Arousal', weight='bold')
-
+    axs['B'].set_xlabel(plot_words["valence"][lang], weight='bold')
+    axs['B'].set_ylabel(plot_words["arousal"][lang], weight='bold')
 
     plt.tight_layout()
     filename = f'stats_{chat_id}.png'

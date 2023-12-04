@@ -294,9 +294,17 @@ plot_words = {
         "en": "Strong",
         "ru": "Сильно",
     },
-    "name": {
-        "en": "",
-        "ru": "",
+    "mood_score": {
+        "en": "Mood score",
+        "ru": "Оценка настроения",
+    },
+    "requested": {
+        "en": "Requested",
+        "ru": "Запрошенный период",
+    },
+    "all_time": {
+        "en": "All time",
+        "ru": "За всё время",
     },
 }
 
