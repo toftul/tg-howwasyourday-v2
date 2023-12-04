@@ -2,6 +2,9 @@ from telegram import Message
 from telegram.ext.filters import MessageFilter
 import logging
 
+from phrases_multilang import translated_emotion_to_key
+
+
 class FilterAllowedChats(MessageFilter):
     def __init__(self, allowed_chat_ids):
         super().__init__()
@@ -25,7 +28,8 @@ class FilterEmotions(MessageFilter):
         self.emotions_list = emotions_list
 
     def filter(self, message: Message) -> bool:
-        text = message.text
+        # handle translated emotions
+        text = translated_emotion_to_key(message.text)
         chat_id = str(message.chat.id)
         is_known_emotion = text in self.emotions_list.keys()
         if not is_known_emotion:

@@ -383,3 +383,14 @@ emotions_translations = {
         "ru": "Испуганный",
     },
 }
+
+def translated_emotion_to_key(translated_emotion, emotions_translations=emotions_translations):
+    """
+        For a given emotion translation it gives back the original dict key for this emotion
+    """
+    for emotion_key, translation_dict in emotions_translations.items():
+        for language, translation in translation_dict.items():
+            if translation == translated_emotion:
+                return emotion_key
+    return "unknown"
+

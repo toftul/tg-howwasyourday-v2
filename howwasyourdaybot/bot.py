@@ -74,7 +74,8 @@ from phrases_multilang import (
     range_due_options_in_hours,
     index_to_words,
     word_to_index,
-    stats_time_ranges
+    stats_time_ranges,
+    translated_emotion_to_key
 )
 
 from filters import FilterAllowedChats, FilterEmotions, FilterIsDigit
@@ -519,6 +520,7 @@ async def unknown_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def get_mood_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
     chat_id = update.effective_chat.id
     message_text = update.message.text
     mode_score = float(message_text)
@@ -527,8 +529,9 @@ async def get_mood_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.chat_data['mood_score'] = mode_score
 
     await update.message.reply_text(
-        text=f"Thanks, I got your mood score which is {message_text}. What's your emotion?",
-        reply_markup=keyboard_emotion_markup
+        text=bot_phases_dict["got_your_mood_score"][lang],
+        reply_markup=keyboard_emotion_markup,
+        parse_mode=bot_phases_dict["got_your_mood_score"]["parse_mode"]
     )
     return STATE_SELECT_EMOTIONS
 
@@ -544,8 +547,9 @@ async def get_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     #    reply_markup=keyboard_emotion_markup
     #)
     await update.message.reply_text(
-        text='Anything else?',
-        reply_markup=keyboard_emotion_markup
+        text=bot_phases_dict["anything_else"][lang],
+        reply_markup=keyboard_emotion_markup,
+        parse_mode=bot_phases_dict["anything_else"]["parse_mode"]
     )
     return STATE_SELECT_EMOTIONS
     
@@ -554,9 +558,13 @@ def calculate_emotion_average(selected_emotions):
     valence_values = np.array([], dtype=float)
     arousal_values = np.array([], dtype=float)
 
-    are_emotions_valid = any(emotion in emotions_list.keys() for emotion in selected_emotions)
+    selected_emotions_keys = []
+    for selected_emotion in selected_emotions:
+        selected_emotions_keys.append(translated_emotion_to_key(selected_emotion))
+
+    are_emotions_valid = any(emotion in emotions_list.keys() for emotion in selected_emotions_keys)
     if are_emotions_valid:
-        for emotion_name in selected_emotions:
+        for emotion_name in selected_emotions_keys:
             emotion_data = emotions_list.get(emotion_name)
             if emotion_data:
                 valence_values = np.append(valence_values, emotion_data["valence"])
