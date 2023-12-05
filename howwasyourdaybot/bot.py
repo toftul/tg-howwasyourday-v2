@@ -217,7 +217,8 @@ async def handel_stats_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
             stats_plot_file = generate_stats_plot(
                 chat_id=chat_id,
                 range_start=stats_time_ranges[user_choice_callback_data]["range_start"],
-                range_stop=stats_time_ranges[user_choice_callback_data]["range_stop"]
+                range_stop=stats_time_ranges[user_choice_callback_data]["range_stop"],
+                lang=lang
             )
             with open(stats_plot_file, 'rb') as image_file:
                 await update.effective_message.reply_photo(
@@ -519,7 +520,7 @@ async def setup_reminder_due_min(update: Update, context: ContextTypes.DEFAULT_T
 
 async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add a job to the queue."""
-    if context.user_data.get("reminders", "on") != "off":
+    if context.user_data.get("reminders", "on") == "on":
         chat_id = update.effective_message.chat_id
 
         job_removed = remove_job_if_exists(str(chat_id), context)
@@ -672,9 +673,20 @@ def schedule_reminders(application, chat_ids):
         application.job_queue.run_once(alarm, due, chat_id=int(chat_id), name=str(chat_id), data=due)
 
 
+def get_regex_done_string(bot_phases_dict=bot_phases_dict):
+    dressed_values = []
+    for value in bot_phases_dict["done"].values():
+        if value is not None:
+            dressed_values.append("^" + value + "$")
+
+    regex_string = "|".join(dressed_values)
+    return regex_string
+
+
 def main() -> None:
     # https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/persistentconversationbot.py
-    persistence = JSONPersistence(file_path="data.json")
+    #persistence = JSONPersistence(file_path="data.json")
+    persistence = PicklePersistence(filepath="data_pickle")
     application = Application.builder().token(token=TOKEN).concurrent_updates(False).persistence(persistence).build()
     #application = Application.builder().token(token=TOKEN).persistence(persistence).build()
 
@@ -700,7 +712,9 @@ def main() -> None:
         filters.TEXT & filter_allowed_chat_ids & filter_emotions,
         get_emotions
     )
-    done_handler = MessageHandler(filters.Regex("^Done$"), done)
+
+    regex_done_string = get_regex_done_string()
+    done_handler = MessageHandler(filters.Regex(regex_done_string), done)
     cancel_handler = CommandHandler("cancel", cancel)
 
     conv_handler = ConversationHandler(

@@ -33,7 +33,7 @@ class FilterEmotions(MessageFilter):
         chat_id = str(message.chat.id)
         is_known_emotion = text in self.emotions_list.keys()
         if not is_known_emotion:
-            logging.error(f"Emotion {text} is not known (chat_id={chat_id})")
+            logging.error(f"Emotion {text}/{message.text} is not known (chat_id={chat_id})")
         return is_known_emotion
 
 

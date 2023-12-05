@@ -4,6 +4,7 @@ emotions*.png
 data.json
 .DS_Store
 stats_*.png
+data_pickle
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
