@@ -44,7 +44,7 @@ stats_time_ranges = {
         },
     },
     "four": {
-        "range_start": "-3m",
+        "range_start": "-90d",
         "range_stop": "now()",
         "label": {
             "en": "last 3 month",
