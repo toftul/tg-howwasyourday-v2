@@ -173,12 +173,10 @@ def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_r
 
     fig, axs = plt.subplot_mosaic(
         """
-        D
-        C
-        A
-        B
-        B
-        """, figsize=(5, 10), dpi=300
+        BC
+        BD
+        BA
+        """, figsize=(10, 5), dpi=300
     )
     myFmt = DateFormatter('%d %b')
 
