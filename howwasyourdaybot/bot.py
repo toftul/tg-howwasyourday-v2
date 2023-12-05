@@ -54,7 +54,6 @@ from config import (
     ALLOWED_CHAT_IDS, 
     lilya_id,
     namesForLilya,
-    remindersList,
     INFLUXDB_TOKEN,
     INFLUXDB_URL,
     INFLUXDB_ORG,
@@ -455,8 +454,16 @@ async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def alarm(context: ContextTypes.DEFAULT_TYPE) -> int:
+    # this does not work
+    # lang = context.user_data.get("language", DEFAULT_LANG)
+    # so I pass lang via job name
     job = context.job
-    reminderText = random.choice(remindersList)
+    job_name = context.job.name 
+    # since job_name is always something like
+    # 123123_en
+    # 123555_ru_extra
+    lang = job_name.split('_')[1]
+    reminderText = random.choice(bot_phases_dict["reminders_list"][lang])
     await context.bot.send_message(
         job.chat_id,
         text=reminderText,
@@ -521,19 +528,20 @@ async def setup_reminder_due_min(update: Update, context: ContextTypes.DEFAULT_T
 async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add a job to the queue."""
     if context.user_data.get("reminders", "on") == "on":
+        lang = context.user_data.get("language", DEFAULT_LANG)
         chat_id = update.effective_message.chat_id
 
-        job_removed = remove_job_if_exists(str(chat_id), context)
-        job_removed_extra = remove_job_if_exists(str(chat_id)+"_extra", context)
+        job_removed = remove_job_if_exists(str(chat_id) + "_" + lang, context)
+        job_removed_extra = remove_job_if_exists(str(chat_id) + "_" + lang + "_extra", context)
         
         hour2sec = 60 * 60  # [h -> s]
         low  = context.user_data.get("REMINDER_DUE_MINIMAL_H", DUE_MINIMAL_H) * hour2sec
         high = context.user_data.get("REMINDER_DUE_MAXIMAL_H", DUE_MAXIMAL_H) * hour2sec
         
         due = np.random.uniform(low=low, high=high)
-        context.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id), data=due)
+        context.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id) + "_" + lang, data=due)
         # second reminder
-        context.job_queue.run_once(alarm, 2*due, chat_id=chat_id, name=str(chat_id)+"_extra", data=due)
+        context.job_queue.run_once(alarm, 2*due, chat_id=chat_id, name=str(chat_id) + "_" + lang + "_extra", data=due)
 
 
 async def unknown_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -655,7 +663,6 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     await set_timer(update=update, context=context)
     return ConversationHandler.END
-    #return STATE_GET_MOOD_SCORE
 
 
 # to handel bot restarts
@@ -670,7 +677,7 @@ def schedule_reminders(application, chat_ids):
             job.schedule_removal()
 
         due = int(np.random.uniform(low=low, high=high))
-        application.job_queue.run_once(alarm, due, chat_id=int(chat_id), name=str(chat_id), data=due)
+        application.job_queue.run_once(alarm, due, chat_id=int(chat_id), name=str(chat_id)+ "_" + DEFAULT_LANG, data=due)
 
 
 def get_regex_done_string(bot_phases_dict=bot_phases_dict):

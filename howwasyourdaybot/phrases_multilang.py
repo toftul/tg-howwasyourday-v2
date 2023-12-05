@@ -266,6 +266,11 @@ Created by Ivan Toftul @toftl
         "ru": "Напоминалки выключены",
         "parse_mode": None,
     },
+    "reminders_list": {
+        "en": ["а? а? а? А? ААА? ААААА? а?!", "wasup?", "sup?", "How are you?", "I's been a while! I miss you. How are you?", "Damn. Damn-damn!! Whats up!?"],
+        "ru": ["а? а? а? А? ААА? ААААА? а?!", "ну че как там", "sup?", "Как ты?", "Как делишки?", "Давно не было от тебя вестей, я соскучился!"],
+        "parse_mode": None,
+    }
 }
 
 plot_words = {

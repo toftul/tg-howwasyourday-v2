@@ -16,13 +16,13 @@ INFLUXDB_URL = os.environ.get("INFLUXDB_URL")
 INFLUXDB_ORG = os.environ.get("INFLUXDB_ORG")
 INFLUXDB_BUCKET = os.environ.get("INFLUXDB_BUCKET")
 
-DUE_MINIMAL_H = float(os.environ.get("DUE_MINIMAL_H"))
-DUE_MAXIMAL_H = float(os.environ.get("DUE_MAXIMAL_H"))
+DUE_MINIMAL_H = float(os.environ.get("DUE_MINIMAL_H", 4))
+DUE_MAXIMAL_H = float(os.environ.get("DUE_MAXIMAL_H", 6))
 
 namesForLilya_JSON = os.environ.get("NAMES_FOR_LILYA_JSON")
 namesForLilya = json.loads(namesForLilya_JSON)
 
-remindersList_JSON = os.environ.get("REMINDERS_LIST_JSON")
-remindersList = json.loads(remindersList_JSON)
+#remindersList_JSON = os.environ.get("REMINDERS_LIST_JSON")
+#remindersList = json.loads(remindersList_JSON)
 
 DEFAULT_LANG = os.environ.get("DEFAULT_LANG", "en")
