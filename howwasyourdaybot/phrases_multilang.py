@@ -78,6 +78,11 @@ bot_phases_dict = {
         "ru": "Я такой эмоции не знаю. Может что-нибудь ещё?",
         "parse_mode": None,
     },
+    "generating_stats_fail": {
+        "en": "Generating plot for you... Ups! Something went wrong :(",
+        "ru": "Строю график... Упс! Что-то пошло не так :(",
+        "parse_mode": None,
+    },
     "generating_stats": {
         "en": "Generating plot for you...",
         "ru": "Строю график...",

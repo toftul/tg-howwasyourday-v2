@@ -226,6 +226,10 @@ async def handel_stats_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
                 )
             return ConversationHandler.END
         except:
+            await query.edit_message_text(
+                text=bot_phases_dict["generating_stats_fail"][lang],
+                parse_mode=bot_phases_dict["generating_stats_fail"]["parse_mode"]
+            )
             logging.error("Cannot generate stats plot.")
             return ConversationHandler.END
     elif user_choice_callback_data == "cancel":
