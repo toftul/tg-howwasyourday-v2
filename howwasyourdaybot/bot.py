@@ -12,7 +12,6 @@ import os
 import logging
 import random
 import numpy as np
-from icecream import ic
 from datetime import datetime
 
 # bot imports
@@ -411,12 +410,6 @@ async def handel_due_settings(update: Update, context: ContextTypes.DEFAULT_TYPE
         return STATE_SETTINGS_CHOOSING
     elif user_choice_callback_data in word_to_index.keys():
         selected_range = np.asarray(range_due_options_in_hours[word_to_index[user_choice_callback_data]], dtype=float)
-
-        ic(
-            selected_range,
-            selected_range.min(),
-            selected_range.max()
-        )
 
         context.user_data["REMINDER_DUE_MINIMAL_H"] = selected_range.min()
         context.user_data["REMINDER_DUE_MAXIMAL_H"] = selected_range.max()
