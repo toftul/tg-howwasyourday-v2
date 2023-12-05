@@ -307,7 +307,7 @@ plot_words = {
     },
     "requested": {
         "en": "Requested",
-        "ru": "Запрошенный период",
+        "ru": "Недавно",
     },
     "all_time": {
         "en": "All time",
