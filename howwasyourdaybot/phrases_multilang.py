@@ -272,7 +272,7 @@ Created by Ivan Toftul @toftl
         "parse_mode": None,
     },
     "reminders_list": {
-        "en": ["а? а? а? А? ААА? ААААА? а?!", "wasup?", "sup?", "How are you?", "I's been a while! I miss you. How are you?", "Damn. Damn-damn!! Whats up!?"],
+        "en": ["а? а? а? А? ААА? ААААА? а?!", "wasup?", "sup?", "How are you?", "It's been a while! I miss you. How are you?", "Damn. Damn-damn!! Whats up!?"],
         "ru": ["а? а? а? А? ААА? ААААА? а?!", "ну че как там", "sup?", "Как ты?", "Как делишки?", "Давно не было от тебя вестей, я соскучился!"],
         "parse_mode": None,
     }
