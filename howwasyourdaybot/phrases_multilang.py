@@ -18,23 +18,32 @@ stats_time_ranges = {
     },
     "one": {
         "range_start": "-14d",
-        "range_stop": "now()",
+        "range_stop": "-7d",
         "label": {
-            "en": "last 2 week",
-            "ru": "последние 2 недели",
+            "en": "previous week",
+            "ru": "прошлая неделя",
             "parse_mode": None,
         },
     },
     "two": {
-        "range_start": "-21d",
+        "range_start": "-14d",
         "range_stop": "now()",
         "label": {
-            "en": "last 3 week",
-            "ru": "последние 3 недели",
+            "en": "last 2 weeks",
+            "ru": "последние 2 недели",
             "parse_mode": None,
         },
     },
     "three": {
+        "range_start": "-28d",
+        "range_stop": "-14d",
+        "label": {
+            "en": "previous 2 weeks",
+            "ru": "предыдущие 2 недели",
+            "parse_mode": None,
+        },
+    },
+    "four": {
         "range_start": "-28d",
         "range_stop": "now()",
         "label": {
@@ -43,16 +52,16 @@ stats_time_ranges = {
             "parse_mode": None,
         },
     },
-    "four": {
-        "range_start": "-90d",
-        "range_stop": "now()",
+    "five": {
+        "range_start": "-60d",
+        "range_stop": "-30d",
         "label": {
-            "en": "last 3 month",
-            "ru": "последние 3 месяца",
+            "en": "previous month",
+            "ru": "прошлый месяц",
             "parse_mode": None,
         },
     },
-    "fire": {
+    "six": {
         "range_start": "-10y",
         "range_stop": "now()",
         "label": {
