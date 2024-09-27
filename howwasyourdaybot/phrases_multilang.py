@@ -118,8 +118,10 @@ bot_phases_dict = {
         "parse_mode": None,
     },
     "start_hello": {
-        "en": "Hi! Glad to see you! I will help you to track your emotions. Write \help for more.",
-        "ru": "Привет! Рад тебя видеть! Я буду тебе помогать следить за своими эмоциями. Напиши \help, чтобы узнать больше.",
+        "en": "Hi! Glad to see you! I will help you to track your emotions.
+        Write /help for more.",
+        "ru": "Привет! Рад тебя видеть! Я буду тебе помогать следить за
+        своими эмоциями. Напиши /help, чтобы узнать больше.",
         "parse_mode": None,
     },
     "back": {
