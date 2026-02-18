@@ -4,6 +4,11 @@ How was your day?
 
 ## Running with podman 
 
+Containers and poetry are not good frieds, so its easier to live with `requirements.txt`:
+```shell
+poetry export -f requirements.txt --output requirements.txt --without-hashes
+```
+
 Build image
 ```shell
 podman build -t howwasyourday-bot .
@@ -23,11 +28,6 @@ podman run -d\
     --env NAMES_FOR_LILYA_JSON="['', '', '']"\
     --env REMINDERS_LIST_JSON="['а? а? а? А? ААА? ААААА? а?!', 'ну че как там', 'sup?', 'How are you?', 'Как делишки?', 'Давно не было от тебя вестей, я соскучился!', 'Damn. Damn-damn!! Whats up!?']"
     localhost/howwasyourday-bot
-```
-
-Containers and poetry are not good frieds, so its easier to live with `requirements.txt`:
-```shell
-poetry export -f requirements.txt --output requirements.txt --without-hashes
 ```
 
 ## Running with poetry
