@@ -12,7 +12,7 @@ import os
 import logging
 import random
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 
 # bot imports
 from telegram import (
@@ -645,7 +645,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         .field('mean_valence', mean_valence)
         .field('mean_arousal', mean_arousal)
         .field('emotions', ', '.join(selected_emotions))
-        .time(datetime.utcnow())
+        .time(datetime.now(timezone.utc))
     )
     
     points = []
@@ -656,7 +656,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             .tag('user', update.effective_chat.id)
             .tag('emotion', emotion)
             .field('value', 1)
-            .time(datetime.utcnow())
+            .time(datetime.now(timezone.utc))
         )
 
     write_api.write(bucket=INFLUXDB_BUCKET, record=points)
