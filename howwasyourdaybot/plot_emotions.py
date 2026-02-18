@@ -34,6 +34,7 @@ def plot_emotions(base_filename='emotions', lang='en'):
 
     filename = base_filename + '_' + lang + '.png'
     plt.savefig(filename)
+    plt.close()
     return filename
     #plt.show()
     

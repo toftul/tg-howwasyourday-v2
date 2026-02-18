@@ -271,6 +271,7 @@ def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_r
     plt.tight_layout()
     filename = f'stats_{chat_id}.png'
     plt.savefig(filename)
+    plt.close(fig)
 
     return filename
 
