@@ -614,6 +614,19 @@ def calculate_emotion_average(selected_emotions):
         return 0.0, 0.0
 
 
+async def timeout_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Auto-save mood data when conversation times out."""
+    if "mood_score" not in context.chat_data:
+        return
+
+    # Default to Neutral if no emotions were selected
+    selected_emotions = [k for k in context.chat_data.keys() if k != "mood_score"]
+    if not selected_emotions:
+        context.chat_data["Neutral"] = emotions_list["Neutral"]
+
+    await done(update, context)
+
+
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     lang = context.user_data.get("language", DEFAULT_LANG)
     chat_id = update.effective_chat.id
@@ -721,6 +734,8 @@ def main() -> None:
     done_handler = MessageHandler(filters.Regex(regex_done_string), done)
     cancel_handler = CommandHandler("cancel", cancel)
 
+    timeout_handler = MessageHandler(filters.ALL, timeout_done)
+
     conv_handler = ConversationHandler(
         entry_points=[start_handler, mood_handler],
         states={
@@ -729,11 +744,13 @@ def main() -> None:
             ],
             STATE_SELECT_EMOTIONS: [
                 emotion_handler
+            ],
+            ConversationHandler.TIMEOUT: [
+                timeout_handler
             ]
         },
         fallbacks=[done_handler, cancel_handler],
-        #name='emotional_handler',
-        #persistent=True
+        conversation_timeout=0.9*DUE_MINIMAL_H * 3600,  # auto-end before first possible reminder
     )
 
     show_settings_handler = CommandHandler("settings", show_settings)
