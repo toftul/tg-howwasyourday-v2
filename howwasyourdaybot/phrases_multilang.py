@@ -178,6 +178,7 @@ The bot will ask you again 3\-8 hours later, and you can customize the reminder 
 \- /get\_stats \- get statistics
 \- /settings \- bot settings
 \- /show\_russell\_map \- show Russell map of emotions
+\- /feedback \- send feedback to the admin
 \- /help \- show this message
 \- /cancel \- cancel current operation, could help if bot does not respond
 
@@ -198,6 +199,7 @@ Created by Ivan Toftul @toftl
 \- /get\_stats \- получить статистику
 \- /settings \- настройки бота
 \- /show\_russell\_map \- показать карту эмоций по Расселу
+\- /feedback \- отправить отзыв администратору
 \- /help \- показать это сообщение
 \- /cancel \- отмеить текущее действие, иногда помогает, если бот завис
 
@@ -323,6 +325,21 @@ Created by Ivan Toftul @toftl
     "trend_stable": {
         "en": "stable →",
         "ru": "стабильно →",
+        "parse_mode": None,
+    },
+    "feedback_sent": {
+        "en": "Thanks! Your feedback has been sent.",
+        "ru": "Спасибо! Сообщение отправлено.",
+        "parse_mode": None,
+    },
+    "feedback_empty": {
+        "en": "Please add your message after /feedback, e.g. /feedback Great bot!",
+        "ru": "Напиши сообщение после /feedback, например /feedback Отличный бот!",
+        "parse_mode": None,
+    },
+    "admin_not_authorized": {
+        "en": "This command is only for the admin.",
+        "ru": "Эта команда только для администратора.",
         "parse_mode": None,
     },
 }

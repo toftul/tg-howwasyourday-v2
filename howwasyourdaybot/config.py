@@ -27,3 +27,5 @@ namesForLilya = json.loads(namesForLilya_JSON)
 #remindersList = json.loads(remindersList_JSON)
 
 DEFAULT_LANG = os.environ.get("DEFAULT_LANG", "en")
+
+ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", 0))

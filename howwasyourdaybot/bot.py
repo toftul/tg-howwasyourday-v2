@@ -50,8 +50,8 @@ from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 from config import (
-    TOKEN, 
-    ALLOWED_CHAT_IDS, 
+    TOKEN,
+    ALLOWED_CHAT_IDS,
     lilya_id,
     namesForLilya,
     INFLUXDB_TOKEN,
@@ -60,7 +60,8 @@ from config import (
     INFLUXDB_BUCKET,
     DUE_MINIMAL_H,
     DUE_MAXIMAL_H,
-    DEFAULT_LANG
+    DEFAULT_LANG,
+    ADMIN_CHAT_ID
 )
 
 from emotions import emotions_list
@@ -885,6 +886,118 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+async def send_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    lang = context.user_data.get("language", DEFAULT_LANG)
+    user = update.effective_user
+    chat_id = update.effective_chat.id
+
+    feedback_text = " ".join(context.args).strip() if context.args else ""
+    if not feedback_text:
+        await update.message.reply_text(
+            text=bot_phases_dict["feedback_empty"][lang],
+            parse_mode=bot_phases_dict["feedback_empty"]["parse_mode"]
+        )
+        return
+
+    if ADMIN_CHAT_ID:
+        msg = f"📬 Feedback from {user.full_name} (id={chat_id}):\n\n{feedback_text}"
+        await context.bot.send_message(ADMIN_CHAT_ID, text=msg)
+
+    await update.message.reply_text(
+        text=bot_phases_dict["feedback_sent"][lang],
+        parse_mode=bot_phases_dict["feedback_sent"]["parse_mode"]
+    )
+
+
+async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_chat.id != ADMIN_CHAT_ID:
+        await update.message.reply_text(bot_phases_dict["admin_not_authorized"]["en"])
+        return
+
+    query_api = client.query_api()
+
+    # 1. Userbase from persistence
+    user_data = await context.application.persistence.get_user_data()
+    total_users = len(user_data)
+
+    # 2. Active users last 7d and 30d from InfluxDB distinct users
+    def count_active_users(days):
+        q = f"""from(bucket: "{INFLUXDB_BUCKET}")
+        |> range(start: -{days}d)
+        |> filter(fn: (r) => r["_measurement"] == "emotion_measurement")
+        |> filter(fn: (r) => r["_field"] == "mood_score")
+        |> keep(columns: ["user"])
+        |> distinct(column: "user")
+        |> count()"""
+        try:
+            result = query_api.query(query=q)
+            if result and result[0].records:
+                return result[0].records[0].get_value()
+        except Exception:
+            pass
+        return 0
+
+    active_7d = count_active_users(7)
+    active_30d = count_active_users(30)
+
+    # 3. Total entries all time
+    q_total = f"""from(bucket: "{INFLUXDB_BUCKET}")
+    |> range(start: -10y)
+    |> filter(fn: (r) => r["_measurement"] == "emotion_measurement")
+    |> filter(fn: (r) => r["_field"] == "mood_score")
+    |> count()"""
+    total_entries = 0
+    try:
+        r = query_api.query(query=q_total)
+        if r and r[0].records:
+            total_entries = r[0].records[0].get_value()
+    except Exception:
+        pass
+
+    # 4. Average mood all time
+    q_avg = f"""from(bucket: "{INFLUXDB_BUCKET}")
+    |> range(start: -10y)
+    |> filter(fn: (r) => r["_measurement"] == "emotion_measurement")
+    |> filter(fn: (r) => r["_field"] == "mood_score")
+    |> mean()"""
+    avg_mood = None
+    try:
+        r = query_api.query(query=q_avg)
+        if r and r[0].records:
+            avg_mood = r[0].records[0].get_value()
+    except Exception:
+        pass
+
+    # 5. Top 10 emotions all time
+    q_emotions = f"""from(bucket: "{INFLUXDB_BUCKET}")
+    |> range(start: -10y)
+    |> filter(fn: (r) => r["_measurement"] == "selected_emotions")"""
+    emotion_counter = Counter()
+    try:
+        r = query_api.query(query=q_emotions)
+        for table in r:
+            for record in table.records:
+                e = record.values.get("emotion", "")
+                if e:
+                    emotion_counter[e] += 1
+    except Exception:
+        pass
+    top_emotions = emotion_counter.most_common(10)
+    top_emotions_str = "\n".join(f"  {i+1}. {e}: {c}" for i, (e, c) in enumerate(top_emotions)) or "—"
+
+    avg_mood_str = f"{avg_mood:.2f}" if avg_mood is not None else "—"
+    text = (
+        f"📊 Admin Stats\n\n"
+        f"👥 Registered users: {total_users}\n"
+        f"🟢 Active last 7d: {active_7d}\n"
+        f"🟡 Active last 30d: {active_30d}\n"
+        f"📝 Total entries: {total_entries}\n"
+        f"😊 Avg mood (all time): {avg_mood_str}\n\n"
+        f"🎭 Top emotions (all time):\n{top_emotions_str}"
+    )
+    await update.message.reply_text(text=text)
+
+
 # to handel bot restarts
 def schedule_reminders(application, chat_ids):
     hour2sec = 60 * 60  # [h -> s]
@@ -1004,7 +1117,9 @@ def main() -> None:
         CommandHandler("help", get_help),
         CommandHandler("show_russell_map", show_russell_map),
         CommandHandler("setup_reminder_due_max", setup_reminder_due_max),
-        CommandHandler("setup_reminder_due_min", setup_reminder_due_min)
+        CommandHandler("setup_reminder_due_min", setup_reminder_due_min),
+        CommandHandler("feedback", send_feedback),
+        CommandHandler("admin_stats", admin_stats),
     ])
     
     application.run_polling(allowed_updates=Update.ALL_TYPES)
