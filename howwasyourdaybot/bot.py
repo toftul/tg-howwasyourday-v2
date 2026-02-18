@@ -767,7 +767,7 @@ async def get_mood_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     lang = context.user_data.get("language", DEFAULT_LANG)
     chat_id = update.effective_chat.id
     message_text = update.message.text
-    mode_score = float(message_text)
+    mode_score = max(-10.0, min(10.0, float(message_text)))
 
     context.chat_data.clear()
     context.chat_data['mood_score'] = mode_score

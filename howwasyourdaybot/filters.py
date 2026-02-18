@@ -44,11 +44,10 @@ class FilterIsDigit(MessageFilter):
     def filter(self, message: Message) -> bool:
         text = message.text
         chat_id = str(message.chat.id)
-        # check if it is a number
-        # https://stackoverflow.com/a/23639915/10282471
-        isdigit = text.replace('.','',1).replace('-','',1).replace('+','',1).isdigit()
-        if not isdigit:
-            logging.info(f"Got {text}, which is not a number (chat_id={chat_id}).")
-        else: 
+        try:
+            float(text)
             logging.info(f"Got {text}, which is a number (chat_id={chat_id}).")
-        return isdigit
+            return True
+        except (ValueError, TypeError):
+            logging.info(f"Got {text}, which is not a number (chat_id={chat_id}).")
+            return False
