@@ -77,6 +77,3 @@ Don't forget to make `gh auth login`.
 ## TODO
 
 1. Emotions descriptions
-2. Fix bug: when reminder comes at the point when you forgot to reply 'done' conversation hangs
-3. ChatGTP based helper to identify emotion by description if not sure ?
-4. 
