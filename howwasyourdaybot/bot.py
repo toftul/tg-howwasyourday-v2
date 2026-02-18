@@ -526,7 +526,7 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add a job to the queue."""
     if context.user_data.get("reminders", "on") == "on":
         lang = context.user_data.get("language", DEFAULT_LANG)
-        chat_id = update.effective_message.chat_id
+        chat_id = update.effective_chat.id
 
         job_removed = remove_job_if_exists(str(chat_id) + "_" + lang, context)
         job_removed_extra = remove_job_if_exists(str(chat_id) + "_" + lang + "_extra", context)
@@ -667,10 +667,12 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     if chat_id == lilya_id:
         done_text = "Хорошо, " + random.choice(namesForLilya) + "! Я записал. Потом спрошу еще!"
-    await update.message.reply_text(
-        text=done_text,
-        reply_markup=keyboard_mood_markup
-    )
+    message = update.effective_message
+    if message is not None:
+        await message.reply_text(
+            text=done_text,
+            reply_markup=keyboard_mood_markup
+        )
     await set_timer(update=update, context=context)
     return ConversationHandler.END
 
