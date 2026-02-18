@@ -954,21 +954,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     except Exception:
         pass
 
-    # 4. Average mood all time
-    q_avg = f"""from(bucket: "{INFLUXDB_BUCKET}")
-    |> range(start: -10y)
-    |> filter(fn: (r) => r["_measurement"] == "emotion_measurement")
-    |> filter(fn: (r) => r["_field"] == "mood_score")
-    |> mean()"""
-    avg_mood = None
-    try:
-        r = query_api.query(query=q_avg)
-        if r and r[0].records:
-            avg_mood = r[0].records[0].get_value()
-    except Exception:
-        pass
-
-    # 5. Top 10 emotions all time
+    # 4. Top 10 emotions all time
     q_emotions = f"""from(bucket: "{INFLUXDB_BUCKET}")
     |> range(start: -10y)
     |> filter(fn: (r) => r["_measurement"] == "selected_emotions")"""
@@ -985,14 +971,12 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     top_emotions = emotion_counter.most_common(10)
     top_emotions_str = "\n".join(f"  {i+1}. {e}: {c}" for i, (e, c) in enumerate(top_emotions)) or "—"
 
-    avg_mood_str = f"{avg_mood:.2f}" if avg_mood is not None else "—"
     text = (
         f"📊 Admin Stats\n\n"
         f"👥 Registered users: {total_users}\n"
         f"🟢 Active last 7d: {active_7d}\n"
         f"🟡 Active last 30d: {active_30d}\n"
-        f"📝 Total entries: {total_entries}\n"
-        f"😊 Avg mood (all time): {avg_mood_str}\n\n"
+        f"📝 Total entries: {total_entries}\n\n"
         f"🎭 Top emotions (all time):\n{top_emotions_str}"
     )
     await update.message.reply_text(text=text)
