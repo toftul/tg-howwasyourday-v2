@@ -74,4 +74,12 @@ emotions_list = {
         "valence": -0.34,
         "arousal": 0.64
     },
+    "Anxious": {
+        "valence": -0.45,
+        "arousal": 0.55
+    },
+    "Droopy": {
+        "valence": -0.35,
+        "arousal": -0.8
+    },
 }

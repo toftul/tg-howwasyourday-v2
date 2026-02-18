@@ -448,6 +448,14 @@ emotions_translations = {
         "en": "Afraid",
         "ru": "Испуганный",
     },
+    "Anxious": {
+        "en": "Anxious",
+        "ru": "Тревожный",
+    },
+    "Droopy": {
+        "en": "Droopy",
+        "ru": "Вялый",
+    },
 }
 
 def translated_emotion_to_key(translated_emotion, emotions_translations=emotions_translations):
