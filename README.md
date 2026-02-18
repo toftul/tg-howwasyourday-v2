@@ -80,3 +80,4 @@ Don't forget to make `gh auth login`.
 2. Mood notes, journaling
 3. Streak feature
 4. Usage stats for the admin
+5. User settings using json
