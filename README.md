@@ -77,3 +77,5 @@ Don't forget to make `gh auth login`.
 ## TODO
 
 1. Emotions descriptions
+2. Mood notes, journaling
+3. Streak feature
