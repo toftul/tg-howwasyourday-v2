@@ -12,7 +12,8 @@ import os
 import logging
 import random
 import numpy as np
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from collections import Counter
 
 # bot imports
 from telegram import (
@@ -132,7 +133,7 @@ logger = logging.getLogger(__name__)
 # Consersation 
 STATE_GET_MOOD_SCORE, STATE_SELECT_EMOTIONS = range(2)
 
-STATE_SETTINGS_CHOOSING, STATE_SETTINGS_DUE, STATE_SETTINGS_TOGGLE_REMINDERS, STATE_SETTINGS_LANGUAGE = range(4)
+STATE_SETTINGS_CHOOSING, STATE_SETTINGS_DUE, STATE_SETTINGS_TOGGLE_REMINDERS, STATE_SETTINGS_LANGUAGE, STATE_SETTINGS_TOGGLE_WEEKLY_SUMMARY = range(5)
 
 STATE_STATS_CHOOSING = range(1)
 
@@ -246,6 +247,7 @@ def get_reply_markup_main_settings(lang="en"):
     settings_items_keyboard = [
         [InlineKeyboardButton(bot_phases_dict["reminders_due"][lang], callback_data="reminders_due")],
         [InlineKeyboardButton(bot_phases_dict["toggle_reminders"][lang], callback_data="toggle_reminders")],
+        [InlineKeyboardButton(bot_phases_dict["toggle_weekly_summary"][lang], callback_data="toggle_weekly_summary")],
         [InlineKeyboardButton(bot_phases_dict["change_language"][lang], callback_data="change_language")],
         [InlineKeyboardButton(bot_phases_dict["cancel"][lang], callback_data="cancel")],
     ]
@@ -306,6 +308,20 @@ async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_T
             reply_markup=toggle_reply_markup
         )
         return STATE_SETTINGS_TOGGLE_REMINDERS
+
+    elif user_choice_callback_data == "toggle_weekly_summary":
+        keyboard_toggle_weekly = [
+            [InlineKeyboardButton(bot_phases_dict["on"][lang], callback_data="weekly_summary_on")],
+            [InlineKeyboardButton(bot_phases_dict["off"][lang], callback_data="weekly_summary_off")],
+            [InlineKeyboardButton(bot_phases_dict["back"][lang], callback_data="back")]
+        ]
+        toggle_reply_markup = InlineKeyboardMarkup(keyboard_toggle_weekly)
+        await query.edit_message_text(
+            text=bot_phases_dict["toggle_weekly_summary"][lang],
+            parse_mode=bot_phases_dict["toggle_weekly_summary"]["parse_mode"],
+            reply_markup=toggle_reply_markup
+        )
+        return STATE_SETTINGS_TOGGLE_WEEKLY_SUMMARY
 
     elif user_choice_callback_data == "change_language":
         keyboard_toggle_reminders = [
@@ -425,6 +441,198 @@ async def handel_due_settings(update: Update, context: ContextTypes.DEFAULT_TYPE
         return ConversationHandler.END
     else:
         return ConversationHandler.END
+
+
+async def handel_toggle_weekly_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
+    query = update.callback_query
+    user_choice_callback_data = query.data
+
+    if user_choice_callback_data == "back":
+        reply_markup = get_reply_markup_main_settings(lang)
+        await query.edit_message_text(
+            text=bot_phases_dict["choose_settings"][lang],
+            reply_markup=reply_markup,
+            parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
+        )
+        return STATE_SETTINGS_CHOOSING
+    elif user_choice_callback_data == "weekly_summary_on":
+        context.user_data["weekly_summary"] = "on"
+        chat_id = update.effective_chat.id
+        schedule_weekly_summary_for_chat(context.application, chat_id, lang)
+        await query.edit_message_text(
+            text=bot_phases_dict["weekly_summary_on"][lang],
+            parse_mode=bot_phases_dict["weekly_summary_on"]["parse_mode"]
+        )
+        return ConversationHandler.END
+    elif user_choice_callback_data == "weekly_summary_off":
+        context.user_data["weekly_summary"] = "off"
+        chat_id = update.effective_chat.id
+        remove_weekly_summary_jobs(context.application, chat_id)
+        await query.edit_message_text(
+            text=bot_phases_dict["weekly_summary_off"][lang],
+            parse_mode=bot_phases_dict["weekly_summary_off"]["parse_mode"]
+        )
+        return ConversationHandler.END
+    else:
+        return ConversationHandler.END
+
+
+def get_next_monday_10utc():
+    """Calculate the datetime of the next Monday at 10:00 UTC."""
+    now = datetime.now(timezone.utc)
+    days_ahead = 0 - now.weekday()  # Monday is 0
+    if days_ahead <= 0:
+        days_ahead += 7
+    next_monday = now.replace(hour=10, minute=0, second=0, microsecond=0) + timedelta(days=days_ahead)
+    return next_monday
+
+
+def schedule_weekly_summary_for_chat(application, chat_id, lang):
+    """Schedule a weekly summary job for a single chat."""
+    job_name = f"{chat_id}_weekly_summary"
+    # Remove existing weekly summary jobs for this chat
+    current_jobs = application.job_queue.get_jobs_by_name(job_name)
+    for job in current_jobs:
+        job.schedule_removal()
+
+    first = get_next_monday_10utc()
+    application.job_queue.run_repeating(
+        weekly_summary,
+        interval=timedelta(weeks=1),
+        first=first,
+        chat_id=int(chat_id),
+        name=job_name,
+        data=lang,
+    )
+
+
+def remove_weekly_summary_jobs(application, chat_id):
+    """Remove weekly summary jobs for a chat."""
+    job_name = f"{chat_id}_weekly_summary"
+    current_jobs = application.job_queue.get_jobs_by_name(job_name)
+    for job in current_jobs:
+        job.schedule_removal()
+
+
+def schedule_weekly_summaries(application, chat_ids):
+    """Schedule weekly summaries for all chats that have opted in."""
+    persistence = application.persistence
+    if persistence is None:
+        return
+    # user_data is loaded after build, keyed by user_id (int)
+    # We check persisted data at startup via post_init or directly
+    # Since persistence may not be loaded yet at this point,
+    # we rely on post_init callback instead
+    pass
+
+
+async def schedule_weekly_summaries_post_init(application):
+    """Post-init callback to schedule weekly summaries from persisted user data."""
+    user_data = await application.persistence.get_user_data()
+    for user_id, data in user_data.items():
+        if data.get("weekly_summary") == "on":
+            lang = data.get("language", DEFAULT_LANG)
+            schedule_weekly_summary_for_chat(application, user_id, lang)
+
+
+async def weekly_summary(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a weekly mood summary to the user."""
+    job = context.job
+    chat_id = job.chat_id
+    lang = job.data if job.data else DEFAULT_LANG
+
+    query_api = client.query_api()
+
+    # Query mood scores for the last 7 days
+    query_mood = f"""from(bucket: "{INFLUXDB_BUCKET}")
+    |> range(start: -7d)
+    |> filter(fn: (r) => r["_measurement"] == "emotion_measurement")
+    |> filter(fn: (r) => r["_field"] == "mood_score")
+    |> filter(fn: (r) => r["user"] == "{chat_id}")
+    """
+
+    try:
+        result_mood = query_api.query(query=query_mood)
+    except Exception:
+        logging.error(f"Weekly summary: failed to query mood for chat {chat_id}")
+        return
+
+    if not result_mood or len(result_mood[0].records) == 0:
+        await context.bot.send_message(
+            chat_id,
+            text=bot_phases_dict["weekly_summary_no_data"][lang],
+        )
+        return
+
+    mood_scores = [record.get_value() for record in result_mood[0].records]
+    count = len(mood_scores)
+    avg_mood = sum(mood_scores) / count
+
+    # Trend: compare first half vs second half
+    mid = count // 2
+    if mid > 0:
+        first_half_avg = sum(mood_scores[:mid]) / mid
+        second_half_avg = sum(mood_scores[mid:]) / (count - mid)
+        diff = second_half_avg - first_half_avg
+        if diff > 0.5:
+            trend = bot_phases_dict["trend_improving"][lang]
+        elif diff < -0.5:
+            trend = bot_phases_dict["trend_declining"][lang]
+        else:
+            trend = bot_phases_dict["trend_stable"][lang]
+    else:
+        trend = bot_phases_dict["trend_stable"][lang]
+
+    # Query top emotions
+    query_emotions = f"""from(bucket: "{INFLUXDB_BUCKET}")
+    |> range(start: -7d)
+    |> filter(fn: (r) => r["_measurement"] == "selected_emotions")
+    |> filter(fn: (r) => r["user"] == "{chat_id}")
+    """
+
+    top_emotions_str = "—"
+    try:
+        result_emotions = query_api.query(query=query_emotions)
+        if result_emotions:
+            emotion_counter = Counter()
+            for table in result_emotions:
+                for record in table.records:
+                    emotion_tag = record.values.get("emotion", "")
+                    if emotion_tag:
+                        emotion_counter[emotion_tag] += 1
+            top_3 = emotion_counter.most_common(3)
+            translated = []
+            for emotion_key, _ in top_3:
+                if emotion_key in emotions_translations:
+                    translated.append(emotions_translations[emotion_key][lang])
+                else:
+                    translated.append(emotion_key)
+            top_emotions_str = ", ".join(translated) if translated else "—"
+    except Exception:
+        logging.error(f"Weekly summary: failed to query emotions for chat {chat_id}")
+
+    # Format summary text
+    summary_text = bot_phases_dict["weekly_summary_text"][lang].format(
+        avg_mood=avg_mood,
+        count=count,
+        top_emotions=top_emotions_str,
+        trend=trend,
+    )
+
+    await context.bot.send_message(chat_id, text=summary_text)
+
+    # Generate and send stats plot
+    try:
+        stats_plot_file = generate_stats_plot(
+            chat_id=chat_id,
+            quick_range='7d',
+            lang=lang,
+        )
+        with open(stats_plot_file, 'rb') as image_file:
+            await context.bot.send_photo(chat_id, photo=image_file)
+    except Exception:
+        logging.error(f"Weekly summary: failed to generate stats plot for chat {chat_id}")
 
 
 async def show_russell_map(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -706,7 +914,7 @@ def main() -> None:
     # https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/persistentconversationbot.py
     #persistence = JSONPersistence(file_path="data.json")
     persistence = PicklePersistence(filepath="data_pickle")
-    application = Application.builder().token(token=TOKEN).concurrent_updates(False).persistence(persistence).build()
+    application = Application.builder().token(token=TOKEN).concurrent_updates(False).persistence(persistence).post_init(schedule_weekly_summaries_post_init).build()
     #application = Application.builder().token(token=TOKEN).persistence(persistence).build()
 
     #application = Application.builder().token(token=TOKEN).build()
@@ -765,6 +973,9 @@ def main() -> None:
             ],
             STATE_SETTINGS_TOGGLE_REMINDERS: [
                 CallbackQueryHandler(handel_toggle_reminders)
+            ],
+            STATE_SETTINGS_TOGGLE_WEEKLY_SUMMARY: [
+                CallbackQueryHandler(handel_toggle_weekly_summary)
             ],
             STATE_SETTINGS_LANGUAGE: [
                 CallbackQueryHandler(handel_language_change)

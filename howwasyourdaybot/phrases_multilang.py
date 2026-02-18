@@ -284,7 +284,47 @@ Created by Ivan Toftul @toftl
         "en": ["а?", "wasup?", "sup?", "How are you?", "It's been a while! I miss you. How are you?", "Whats up?"],
         "ru": ["а?", "ну че как там?", "sup?", "Как ты?", "Как делишки?", "Давно не было от тебя вестей, я соскучился!"],
         "parse_mode": None,
-    }
+    },
+    "toggle_weekly_summary": {
+        "en": "Weekly summary",
+        "ru": "Еженедельный отчёт",
+        "parse_mode": None,
+    },
+    "weekly_summary_on": {
+        "en": "Weekly summary is turned on",
+        "ru": "Еженедельный отчёт включен",
+        "parse_mode": None,
+    },
+    "weekly_summary_off": {
+        "en": "Weekly summary is turned off",
+        "ru": "Еженедельный отчёт выключен",
+        "parse_mode": None,
+    },
+    "weekly_summary_text": {
+        "en": "Your week in review:\n\nAverage mood: {avg_mood:.1f}\nEntries: {count}\nTop emotions: {top_emotions}\nTrend: {trend}",
+        "ru": "Твоя неделя:\n\nСреднее настроение: {avg_mood:.1f}\nЗаписей: {count}\nЧастые эмоции: {top_emotions}\nТренд: {trend}",
+        "parse_mode": None,
+    },
+    "weekly_summary_no_data": {
+        "en": "No data for this week",
+        "ru": "Нет данных за эту неделю",
+        "parse_mode": None,
+    },
+    "trend_improving": {
+        "en": "improving ↗",
+        "ru": "улучшение ↗",
+        "parse_mode": None,
+    },
+    "trend_declining": {
+        "en": "declining ↘",
+        "ru": "ухудшение ↘",
+        "parse_mode": None,
+    },
+    "trend_stable": {
+        "en": "stable →",
+        "ru": "стабильно →",
+        "parse_mode": None,
+    },
 }
 
 plot_words = {
