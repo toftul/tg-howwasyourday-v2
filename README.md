@@ -9,6 +9,8 @@ A Telegram bot for tracking your mood and emotional state over time. It periodic
 3. You pick one or more emotions from a predefined list.
 4. Your entry is saved. Over time, `/get_stats` shows you plots of your mood history, emotion distribution on the Russell map, and valence/arousal trends.
 
+![Example stats report](docs/images/report_example.jpg)
+
 ## Emotion theory
 
 It seems that our brain have two independent neurophysiological systems, thus any attempt to represent an emotional states ends up to be two deminetional [[Colibazzi, T. et al (2010)](https://doi.org/10.1037/a0018484); [Posner, J. et al. (2009)](https://doi.org/10.1037/h0077714)]. In this bot emotions are placed on the **Russell circumplex model of affect** [(Russell, 1980)](https://doi.org/10.1037/h0077714). The model represents emotional states in a 2D space:
