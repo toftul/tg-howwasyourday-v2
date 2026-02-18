@@ -11,7 +11,7 @@ A Telegram bot for tracking your mood and emotional state over time. It periodic
 
 ## Emotion theory
 
-It seems that our brain have two independent neurogical systems, thus any attempt to represent an emotional states ends up to be two deminetional [[Colibazzi, T. et al (2010)](https://doi.org/10.1037/a0018484); [Posner, J. et al. (2009)](https://doi.org/10.1037/h0077714)]. In this bot emotions are placed on the **Russell circumplex model of affect** [(Russell, 1980)](https://doi.org/10.1037/h0077714). The model represents emotional states in a 2D space:
+It seems that our brain have two independent neurophysiological systems, thus any attempt to represent an emotional states ends up to be two deminetional [[Colibazzi, T. et al (2010)](https://doi.org/10.1037/a0018484); [Posner, J. et al. (2009)](https://doi.org/10.1037/h0077714)]. In this bot emotions are placed on the **Russell circumplex model of affect** [(Russell, 1980)](https://doi.org/10.1037/h0077714). The model represents emotional states in a 2D space:
 
 - **Valence** (x-axis): how pleasant or unpleasant the emotion feels, from -1 (very negative) to +1 (very positive).
 - **Arousal** (y-axis): how activated or deactivated you are, from -1 (very calm/sleepy) to +1 (very energized).
