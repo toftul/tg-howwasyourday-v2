@@ -25,7 +25,7 @@ A Telegram bot for tracking your mood and emotional state over time. It periodic
 
 | Command | Description |
 |---|---|
-| `/admin_stats` | Show aggregate stats: registered users, active users (7d/30d), total entries, top 10 emotions |
+| `/admin_stats` | Show aggregate stats: registered users, active users (7d/30d), total entries, top 10 and least used emotions |
 
 ![Example stats report](docs/images/report_example.jpg)
 
