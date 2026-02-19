@@ -29,3 +29,5 @@ namesForLilya = json.loads(namesForLilya_JSON)
 DEFAULT_LANG = os.environ.get("DEFAULT_LANG", "en")
 
 ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", 0))
+
+PUBLIC_ACCESS = os.environ.get("PUBLIC_ACCESS", "false").lower() == "true"

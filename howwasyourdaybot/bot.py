@@ -61,7 +61,8 @@ from config import (
     DUE_MINIMAL_H,
     DUE_MAXIMAL_H,
     DEFAULT_LANG,
-    ADMIN_CHAT_ID
+    ADMIN_CHAT_ID,
+    PUBLIC_ACCESS
 )
 
 from emotions import emotions_list
@@ -1026,14 +1027,17 @@ def main() -> None:
     filter_emotions = FilterEmotions(emotions_list)
     filter_isgidit = FilterIsDigit()
 
+    # PUBLIC_ACCESS=true opens the bot to everyone; set to false to restrict to ALLOWED_CHAT_IDS
+    chat_filter = filters.ALL if PUBLIC_ACCESS else filter_allowed_chat_ids
+
     start_handler = CommandHandler("start", start)
-    
+
     mood_handler = MessageHandler(
-        filters.TEXT & filter_allowed_chat_ids & filter_isgidit,
+        filters.TEXT & chat_filter & filter_isgidit,
         get_mood_score
     )
     emotion_handler = MessageHandler(
-        filters.TEXT & filter_allowed_chat_ids & filter_emotions,
+        filters.TEXT & chat_filter & filter_emotions,
         get_emotions
     )
 
