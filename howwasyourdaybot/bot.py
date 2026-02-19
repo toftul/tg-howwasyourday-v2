@@ -971,6 +971,8 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         pass
     top_emotions = emotion_counter.most_common(10)
     top_emotions_str = "\n".join(f"  {i+1}. {e}: {c}" for i, (e, c) in enumerate(top_emotions)) or "—"
+    least_emotions = emotion_counter.most_common()[:-11:-1]  # bottom 10
+    least_emotions_str = "\n".join(f"  {i+1}. {e}: {c}" for i, (e, c) in enumerate(least_emotions)) or "—"
 
     text = (
         f"📊 Admin Stats\n\n"
@@ -978,7 +980,8 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         f"🟢 Active last 7d: {active_7d}\n"
         f"🟡 Active last 30d: {active_30d}\n"
         f"📝 Total entries: {total_entries}\n\n"
-        f"🎭 Top emotions (all time):\n{top_emotions_str}"
+        f"🎭 Top emotions (all time):\n{top_emotions_str}\n\n"
+        f"🥶 Least used emotions (all time):\n{least_emotions_str}"
     )
     await update.message.reply_text(text=text)
 
