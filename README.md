@@ -5,9 +5,27 @@ A Telegram bot for tracking your mood and emotional state over time. It periodic
 ## How it works
 
 1. The bot sends you a reminder at a random time within your configured window.
-2. You rate your current general state from **-10** (worst) to **+10** (best).
+2. You rate your current general state from **-10** (worst) to **+10** (best). Values outside this range are automatically clamped.
 3. You pick one or more emotions from a predefined list.
 4. Your entry is saved. Over time, `/get_stats` shows you plots of your mood history, emotion distribution on the Russell map, and valence/arousal trends.
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `/start` | Start a mood entry |
+| `/get_stats` | Generate a stats plot for a chosen time range |
+| `/settings` | Configure reminder window, toggle reminders/weekly summary, change language |
+| `/show_russell_map` | Show the Russell emotion map |
+| `/feedback <message>` | Send a message directly to the admin |
+| `/help` | Show the help message |
+| `/cancel` | Cancel the current operation |
+
+**Admin only**
+
+| Command | Description |
+|---|---|
+| `/admin_stats` | Show aggregate stats: registered users, active users (7d/30d), total entries, top 10 emotions |
 
 ![Example stats report](docs/images/report_example.jpg)
 
@@ -48,7 +66,8 @@ podman run -d\
     --env DUE_MINIMAL_H=3\
     --env DUE_MAXIMAL_H=8\
     --env NAMES_FOR_LILYA_JSON="['', '', '']"\
-    --env REMINDERS_LIST_JSON="['а? а? а? А? ААА? ААААА? а?!', 'ну че как там', 'sup?', 'How are you?', 'Как делишки?', 'Давно не было от тебя вестей, я соскучился!', 'Damn. Damn-damn!! Whats up!?']"
+    --env ADMIN_CHAT_ID=123\
+    --env PUBLIC_ACCESS=false
     localhost/howwasyourday-bot
 ```
 
@@ -59,17 +78,18 @@ poetry self add poetry-dotenv-plugin
 ```
 and create `howwasyourdaybot/.env` file
 ```shell
-TELEGRAM_BOT_TOKEN='token'  
-ALLOWED_CHAT_IDS='123, 1234' 
+TELEGRAM_BOT_TOKEN='token'
+ALLOWED_CHAT_IDS='123, 1234'
 LILYA_ID=123
-INFLUXDB_TOKEN='token'  
-INFLUXDB_URL='http://localhost:8086'  
-INFLUXDB_ORG='home'  
-INFLUXDB_BUCKET='bucket'  
-DUE_MINIMAL_H=3  
-DUE_MAXIMAL_H=8  
-NAMES_FOR_LILYA_JSON='["name1", "name2", "name3"]'  
-REMINDERS_LIST_JSON='["а? а? а? А? ААА? ААААА? а?!", "ну че как там", "sup?", "How are you?", "Как делишки?", "Давно не было от тебя вестей, я соскучился!", "Damn. Damn-damn!! Whats up!?"]'
+INFLUXDB_TOKEN='token'
+INFLUXDB_URL='http://localhost:8086'
+INFLUXDB_ORG='home'
+INFLUXDB_BUCKET='bucket'
+DUE_MINIMAL_H=3
+DUE_MAXIMAL_H=8
+NAMES_FOR_LILYA_JSON='["name1", "name2", "name3"]'
+ADMIN_CHAT_ID=123
+# PUBLIC_ACCESS=true  # uncomment to open the bot to everyone (ignores ALLOWED_CHAT_IDS)
 ```
 
 ### Manage with systemd
@@ -101,5 +121,5 @@ Don't forget to make `gh auth login`.
 1. Emotions descriptions
 2. Mood notes, journaling
 3. Streak feature
-4. Usage stats for the admin
+4. ~~Usage stats for the admin~~ — done (`/admin_stats`)
 5. User settings using json
