@@ -118,8 +118,9 @@ Don't forget to make `gh auth login`.
 
 ## TODO
 
-1. Emotions descriptions
-2. Mood notes, journaling
-3. Streak feature
-4. ~~Usage stats for the admin~~ — done (`/admin_stats`)
-5. User settings using json
+1. ✅ Usage stats for the admin — done (`/admin_stats`)
+2. ✅ User feedback  — done (`/feedbacks`)
+3. Emotions descriptions
+4. Mood notes, journaling
+5. Streak feature
+6. User settings using json
