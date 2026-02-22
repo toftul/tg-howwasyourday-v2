@@ -932,8 +932,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         |> count()"""
         try:
             result = query_api.query(query=q)
-            if result and result[0].records:
-                return result[0].records[0].get_value()
+            return sum(record.get_value() for table in result for record in table.records)
         except Exception:
             pass
         return 0
@@ -950,8 +949,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     total_entries = 0
     try:
         r = query_api.query(query=q_total)
-        if r and r[0].records:
-            total_entries = r[0].records[0].get_value()
+        total_entries = sum(record.get_value() for table in r for record in table.records)
     except Exception:
         pass
 
