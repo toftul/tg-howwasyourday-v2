@@ -7,7 +7,7 @@ helpful:
 - https://docs.python-telegram-bot.org/en/v20.5/telegram.message.html
 """
 
-# basic imports 
+# basic imports
 import os
 import logging
 import random
@@ -70,8 +70,8 @@ from plot_emotions import plot_emotions
 from get_stats_plots import generate_stats_plot
 # translations
 from phrases_multilang import (
-    bot_phases_dict, 
-    emotions_translations, 
+    bot_phases_dict,
+    emotions_translations,
     range_due_options_in_hours,
     index_to_words,
     word_to_index,
@@ -132,7 +132,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Consersation 
+# Consersation
 STATE_GET_MOOD_SCORE, STATE_SELECT_EMOTIONS = range(2)
 
 STATE_SETTINGS_CHOOSING, STATE_SETTINGS_DUE, STATE_SETTINGS_TOGGLE_REMINDERS, STATE_SETTINGS_LANGUAGE, STATE_SETTINGS_TOGGLE_WEEKLY_SUMMARY = range(5)
@@ -199,7 +199,7 @@ async def get_stats_choosing(update: Update, context: ContextTypes.DEFAULT_TYPE)
         reply_markup=range_reply_markup,
         parse_mode=bot_phases_dict["choose_stats_range"]["parse_mode"]
     )
-    
+
     return STATE_STATS_CHOOSING
 
 
@@ -435,7 +435,7 @@ async def handel_due_settings(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         context.user_data["REMINDER_DUE_MINIMAL_H"] = selected_range.min()
         context.user_data["REMINDER_DUE_MAXIMAL_H"] = selected_range.max()
-        
+
         await query.edit_message_text(
             text=bot_phases_dict["reminders_are_set"][lang].format(due_min=selected_range.min(), due_max=selected_range.max()),
             parse_mode=bot_phases_dict["reminders_are_set"]["parse_mode"]
@@ -665,7 +665,7 @@ async def alarm(context: ContextTypes.DEFAULT_TYPE) -> int:
     # lang = context.user_data.get("language", DEFAULT_LANG)
     # so I pass lang via job name
     job = context.job
-    job_name = context.job.name 
+    job_name = context.job.name
     # since job_name is always something like
     # 123123_en
     # 123555_ru_extra
@@ -740,15 +740,16 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         job_removed = remove_job_if_exists(str(chat_id) + "_" + lang, context)
         job_removed_extra = remove_job_if_exists(str(chat_id) + "_" + lang + "_extra", context)
-        
+
         hour2sec = 60 * 60  # [h -> s]
         low  = context.user_data.get("REMINDER_DUE_MINIMAL_H", DUE_MINIMAL_H) * hour2sec
         high = context.user_data.get("REMINDER_DUE_MAXIMAL_H", DUE_MAXIMAL_H) * hour2sec
-        
+
         due = np.random.uniform(low=low, high=high)
+        due2 = 2*np.random.uniform(low=low, high=high)
         context.job_queue.run_once(alarm, due, chat_id=chat_id, name=str(chat_id) + "_" + lang, data=due)
         # second reminder
-        context.job_queue.run_once(alarm, 2*due, chat_id=chat_id, name=str(chat_id) + "_" + lang + "_extra", data=due)
+        context.job_queue.run_once(alarm, due2, chat_id=chat_id, name=str(chat_id) + "_" + lang + "_extra", data=due)
 
 
 async def unknown_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -790,14 +791,14 @@ async def get_emotions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     context.chat_data[message_text] = emotions_list[message_text]
 
     keyboard_emotion_markup = get_emotions_keyboard_markup(lang=lang)
-    
+
     await update.message.reply_text(
         text=bot_phases_dict["anything_else"][lang],
         reply_markup=keyboard_emotion_markup,
         parse_mode=bot_phases_dict["anything_else"]["parse_mode"]
     )
     return STATE_SELECT_EMOTIONS
-    
+
 
 def calculate_emotion_average(selected_emotions):
     valence_values = np.array([], dtype=float)
@@ -843,7 +844,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     #message_text = update.message.text
 
     mood_score = context.chat_data["mood_score"]
-    
+
     # emotion_average function filters out any non-emotion related keys
     selected_emotions = list(context.chat_data.keys())
     selected_emotions.remove("mood_score")
@@ -857,7 +858,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         .field('emotions', ', '.join(selected_emotions))
         .time(datetime.now(timezone.utc))
     )
-    
+
     points = []
     points.append(point)
     for emotion in selected_emotions:
@@ -1088,7 +1089,7 @@ def main() -> None:
         },
         fallbacks=[cancel_handler]
     )
-    
+
     stats_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("get_stats", get_stats_choosing)],
         states={
@@ -1098,7 +1099,7 @@ def main() -> None:
         },
         fallbacks=[cancel_handler]
     )
-    
+
     application.add_handlers([
         conv_handler,
         settings_conv_handler,
@@ -1110,7 +1111,7 @@ def main() -> None:
         CommandHandler("feedback", send_feedback),
         CommandHandler("admin_stats", admin_stats),
     ])
-    
+
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
