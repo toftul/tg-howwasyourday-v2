@@ -135,7 +135,7 @@ logger = logging.getLogger(__name__)
 # Consersation 
 STATE_GET_MOOD_SCORE, STATE_SELECT_EMOTIONS = range(2)
 
-STATE_SETTINGS_CHOOSING, STATE_SETTINGS_DUE, STATE_SETTINGS_TOGGLE_REMINDERS, STATE_SETTINGS_LANGUAGE, STATE_SETTINGS_TOGGLE_WEEKLY_SUMMARY = range(5)
+STATE_SETTINGS_CHOOSING, STATE_SETTINGS_DUE, STATE_SETTINGS_LANGUAGE = range(3)
 
 STATE_STATS_CHOOSING = range(1)
 
@@ -245,12 +245,26 @@ async def handel_stats_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
         return ConversationHandler.END
 
 
-def get_reply_markup_main_settings(lang="en"):
+def get_reply_markup_main_settings(lang, user_data):
+    all_rem = user_data.get("all_reminders", "on")
+    rem = user_data.get("reminders", "on")
+    weekly = user_data.get("weekly_summary", "off")
+    cur_lang = user_data.get("language", DEFAULT_LANG)
+    due_min = user_data.get("REMINDER_DUE_MINIMAL_H", DUE_MINIMAL_H)
+    due_max = user_data.get("REMINDER_DUE_MAXIMAL_H", DUE_MAXIMAL_H)
+
+    all_rem_label = bot_phases_dict["all_reminders_on"][lang] if all_rem == "on" else bot_phases_dict["all_reminders_off"][lang]
+    rem_label = bot_phases_dict["mood_reminders_on"][lang] if rem == "on" else bot_phases_dict["mood_reminders_off"][lang]
+    weekly_label = bot_phases_dict["weekly_summary_on_label"][lang] if weekly == "on" else bot_phases_dict["weekly_summary_off_label"][lang]
+    reminder_window = bot_phases_dict["reminders_due"][lang] + ": " + bot_phases_dict["range_due"][lang].format(due_min=due_min, due_max=due_max)
+    lang_label = bot_phases_dict["language_label"][cur_lang]
+
     settings_items_keyboard = [
-        [InlineKeyboardButton(bot_phases_dict["reminders_due"][lang], callback_data="reminders_due")],
-        [InlineKeyboardButton(bot_phases_dict["toggle_reminders"][lang], callback_data="toggle_reminders")],
-        [InlineKeyboardButton(bot_phases_dict["toggle_weekly_summary"][lang], callback_data="toggle_weekly_summary")],
-        [InlineKeyboardButton(bot_phases_dict["change_language"][lang], callback_data="change_language")],
+        [InlineKeyboardButton(all_rem_label, callback_data="toggle_all_reminders")],
+        [InlineKeyboardButton(reminder_window, callback_data="reminders_due")],
+        [InlineKeyboardButton(rem_label, callback_data="toggle_mood_reminders")],
+        [InlineKeyboardButton(weekly_label, callback_data="toggle_weekly_summary")],
+        [InlineKeyboardButton(lang_label, callback_data="change_language")],
         [InlineKeyboardButton(bot_phases_dict["cancel"][lang], callback_data="cancel")],
     ]
     reply_markup = InlineKeyboardMarkup(settings_items_keyboard)
@@ -258,7 +272,7 @@ def get_reply_markup_main_settings(lang="en"):
 
 async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     lang = context.user_data.get("language", DEFAULT_LANG)
-    reply_markup = get_reply_markup_main_settings(lang)
+    reply_markup = get_reply_markup_main_settings(lang, context.user_data)
 
     await update.message.reply_text(
         text=bot_phases_dict["choose_settings"][lang],
@@ -297,48 +311,67 @@ async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_T
         )
         return STATE_SETTINGS_DUE
 
-    elif user_choice_callback_data == "toggle_reminders":
-        keyboard_toggle_reminders = [
-            [InlineKeyboardButton(bot_phases_dict["on"][lang], callback_data="reminders_on")],
-            [InlineKeyboardButton(bot_phases_dict["off"][lang], callback_data="reminders_off")],
-            [InlineKeyboardButton(bot_phases_dict["back"][lang], callback_data="back")]
-        ]
-        toggle_reply_markup = InlineKeyboardMarkup(keyboard_toggle_reminders)
+    elif user_choice_callback_data == "toggle_all_reminders":
+        current = context.user_data.get("all_reminders", "on")
+        new_val = "off" if current == "on" else "on"
+        context.user_data["all_reminders"] = new_val
+        chat_id = update.effective_chat.id
+        if new_val == "off":
+            remove_weekly_summary_jobs(context.application, chat_id)
+        else:
+            if context.user_data.get("weekly_summary") == "on":
+                schedule_weekly_summary_for_chat(context.application, chat_id, lang)
+        reply_markup = get_reply_markup_main_settings(lang, context.user_data)
         await query.edit_message_text(
-            text=bot_phases_dict["toggle_reminders"][lang],
-            parse_mode=bot_phases_dict["toggle_reminders"]["parse_mode"],
-            reply_markup=toggle_reply_markup
+            text=bot_phases_dict["choose_settings"][lang],
+            reply_markup=reply_markup,
+            parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
         )
-        return STATE_SETTINGS_TOGGLE_REMINDERS
+        return STATE_SETTINGS_CHOOSING
+
+    elif user_choice_callback_data == "toggle_mood_reminders":
+        current = context.user_data.get("reminders", "on")
+        new_val = "off" if current == "on" else "on"
+        context.user_data["reminders"] = new_val
+        reply_markup = get_reply_markup_main_settings(lang, context.user_data)
+        await query.edit_message_text(
+            text=bot_phases_dict["choose_settings"][lang],
+            reply_markup=reply_markup,
+            parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
+        )
+        return STATE_SETTINGS_CHOOSING
 
     elif user_choice_callback_data == "toggle_weekly_summary":
-        keyboard_toggle_weekly = [
-            [InlineKeyboardButton(bot_phases_dict["on"][lang], callback_data="weekly_summary_on")],
-            [InlineKeyboardButton(bot_phases_dict["off"][lang], callback_data="weekly_summary_off")],
-            [InlineKeyboardButton(bot_phases_dict["back"][lang], callback_data="back")]
-        ]
-        toggle_reply_markup = InlineKeyboardMarkup(keyboard_toggle_weekly)
+        current = context.user_data.get("weekly_summary", "off")
+        new_val = "off" if current == "on" else "on"
+        context.user_data["weekly_summary"] = new_val
+        chat_id = update.effective_chat.id
+        if new_val == "on" and context.user_data.get("all_reminders", "on") == "on":
+            schedule_weekly_summary_for_chat(context.application, chat_id, lang)
+        elif new_val == "off":
+            remove_weekly_summary_jobs(context.application, chat_id)
+        reply_markup = get_reply_markup_main_settings(lang, context.user_data)
         await query.edit_message_text(
-            text=bot_phases_dict["toggle_weekly_summary"][lang],
-            parse_mode=bot_phases_dict["toggle_weekly_summary"]["parse_mode"],
-            reply_markup=toggle_reply_markup
+            text=bot_phases_dict["choose_settings"][lang],
+            reply_markup=reply_markup,
+            parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
         )
-        return STATE_SETTINGS_TOGGLE_WEEKLY_SUMMARY
+        return STATE_SETTINGS_CHOOSING
 
     elif user_choice_callback_data == "change_language":
-        keyboard_toggle_reminders = [
+        keyboard_lang = [
             [InlineKeyboardButton(bot_phases_dict["language_name_ru"][lang], callback_data="change_language_to_ru")],
             [InlineKeyboardButton(bot_phases_dict["language_name_en"][lang], callback_data="change_language_to_en")],
             [InlineKeyboardButton(bot_phases_dict["back"][lang], callback_data="back")]
         ]
-        toggle_reply_markup = InlineKeyboardMarkup(keyboard_toggle_reminders)
+        toggle_reply_markup = InlineKeyboardMarkup(keyboard_lang)
         await query.edit_message_text(
             text=bot_phases_dict["change_language"][lang],
             parse_mode=bot_phases_dict["change_language"]["parse_mode"],
             reply_markup=toggle_reply_markup
         )
-
         return STATE_SETTINGS_LANGUAGE
+
     elif user_choice_callback_data == "cancel":
         await query.edit_message_text(
             text=bot_phases_dict["canceled"][lang],
@@ -349,38 +382,6 @@ async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_T
         return ConversationHandler.END
 
 
-async def handel_toggle_reminders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    lang = context.user_data.get("language", DEFAULT_LANG)
-    query = update.callback_query
-    user_choice_callback_data = query.data
-
-    if user_choice_callback_data == "back":
-        lang = context.user_data.get("language", DEFAULT_LANG)
-        reply_markup = get_reply_markup_main_settings(lang)
-
-        await query.edit_message_text(
-            text=bot_phases_dict["choose_settings"][lang],
-            reply_markup=reply_markup,
-            parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
-        )
-        return STATE_SETTINGS_CHOOSING
-    elif user_choice_callback_data == "reminders_on":
-        context.user_data["reminders"] = "on"
-        await query.edit_message_text(
-            text=bot_phases_dict["reminders_on"][lang],
-            parse_mode=bot_phases_dict["reminders_on"]["parse_mode"]
-        )
-        return ConversationHandler.END
-    elif user_choice_callback_data == "reminders_off":
-        context.user_data["reminders"] = "off"
-        await query.edit_message_text(
-            text=bot_phases_dict["reminders_off"][lang],
-            parse_mode=bot_phases_dict["reminders_off"]["parse_mode"]
-        )
-        return ConversationHandler.END
-    else:
-        return ConversationHandler.END
-
 
 async def handel_language_change(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     lang = context.user_data.get("language", DEFAULT_LANG)
@@ -388,9 +389,7 @@ async def handel_language_change(update: Update, context: ContextTypes.DEFAULT_T
     user_choice_callback_data = query.data
 
     if user_choice_callback_data == "back":
-        lang = context.user_data.get("language", DEFAULT_LANG)
-        reply_markup = get_reply_markup_main_settings(lang)
-
+        reply_markup = get_reply_markup_main_settings(lang, context.user_data)
         await query.edit_message_text(
             text=bot_phases_dict["choose_settings"][lang],
             reply_markup=reply_markup,
@@ -399,18 +398,24 @@ async def handel_language_change(update: Update, context: ContextTypes.DEFAULT_T
         return STATE_SETTINGS_CHOOSING
     elif user_choice_callback_data == "change_language_to_ru":
         context.user_data["language"] = "ru"
+        lang = "ru"
+        reply_markup = get_reply_markup_main_settings(lang, context.user_data)
         await query.edit_message_text(
-            text=bot_phases_dict["language_is_set_to_ru"]["ru"],
-            parse_mode=bot_phases_dict["language_is_set_to_ru"]["parse_mode"]
+            text=bot_phases_dict["choose_settings"][lang],
+            reply_markup=reply_markup,
+            parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
         )
-        return ConversationHandler.END
+        return STATE_SETTINGS_CHOOSING
     elif user_choice_callback_data == "change_language_to_en":
         context.user_data["language"] = "en"
+        lang = "en"
+        reply_markup = get_reply_markup_main_settings(lang, context.user_data)
         await query.edit_message_text(
-            text=bot_phases_dict["language_is_set_to_en"]["en"],
-            parse_mode=bot_phases_dict["language_is_set_to_en"]["parse_mode"]
+            text=bot_phases_dict["choose_settings"][lang],
+            reply_markup=reply_markup,
+            parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
         )
-        return ConversationHandler.END
+        return STATE_SETTINGS_CHOOSING
     else:
         return ConversationHandler.END
 
@@ -421,9 +426,7 @@ async def handel_due_settings(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_choice_callback_data = query.data
 
     if user_choice_callback_data == "back":
-        lang = context.user_data.get("language", DEFAULT_LANG)
-        reply_markup = get_reply_markup_main_settings(lang)
-
+        reply_markup = get_reply_markup_main_settings(lang, context.user_data)
         await query.edit_message_text(
             text=bot_phases_dict["choose_settings"][lang],
             reply_markup=reply_markup,
@@ -435,49 +438,17 @@ async def handel_due_settings(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         context.user_data["REMINDER_DUE_MINIMAL_H"] = selected_range.min()
         context.user_data["REMINDER_DUE_MAXIMAL_H"] = selected_range.max()
-        
-        await query.edit_message_text(
-            text=bot_phases_dict["reminders_are_set"][lang].format(due_min=selected_range.min(), due_max=selected_range.max()),
-            parse_mode=bot_phases_dict["reminders_are_set"]["parse_mode"]
-        )
-        return ConversationHandler.END
-    else:
-        return ConversationHandler.END
 
-
-async def handel_toggle_weekly_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    lang = context.user_data.get("language", DEFAULT_LANG)
-    query = update.callback_query
-    user_choice_callback_data = query.data
-
-    if user_choice_callback_data == "back":
-        reply_markup = get_reply_markup_main_settings(lang)
+        reply_markup = get_reply_markup_main_settings(lang, context.user_data)
         await query.edit_message_text(
             text=bot_phases_dict["choose_settings"][lang],
             reply_markup=reply_markup,
             parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
         )
         return STATE_SETTINGS_CHOOSING
-    elif user_choice_callback_data == "weekly_summary_on":
-        context.user_data["weekly_summary"] = "on"
-        chat_id = update.effective_chat.id
-        schedule_weekly_summary_for_chat(context.application, chat_id, lang)
-        await query.edit_message_text(
-            text=bot_phases_dict["weekly_summary_on"][lang],
-            parse_mode=bot_phases_dict["weekly_summary_on"]["parse_mode"]
-        )
-        return ConversationHandler.END
-    elif user_choice_callback_data == "weekly_summary_off":
-        context.user_data["weekly_summary"] = "off"
-        chat_id = update.effective_chat.id
-        remove_weekly_summary_jobs(context.application, chat_id)
-        await query.edit_message_text(
-            text=bot_phases_dict["weekly_summary_off"][lang],
-            parse_mode=bot_phases_dict["weekly_summary_off"]["parse_mode"]
-        )
-        return ConversationHandler.END
     else:
         return ConversationHandler.END
+
 
 
 def get_next_monday_10utc():
@@ -533,7 +504,7 @@ async def schedule_weekly_summaries_post_init(application):
     """Post-init callback to schedule weekly summaries from persisted user data."""
     user_data = await application.persistence.get_user_data()
     for user_id, data in user_data.items():
-        if data.get("weekly_summary") == "on":
+        if data.get("weekly_summary") == "on" and data.get("all_reminders", "on") == "on":
             lang = data.get("language", DEFAULT_LANG)
             schedule_weekly_summary_for_chat(application, user_id, lang)
 
@@ -543,6 +514,12 @@ async def weekly_summary(context: ContextTypes.DEFAULT_TYPE) -> None:
     job = context.job
     chat_id = job.chat_id
     lang = job.data if job.data else DEFAULT_LANG
+
+    user_data = context.application.user_data.get(chat_id, {})
+    if user_data.get("all_reminders", "on") == "off":
+        return
+    if user_data.get("weekly_summary", "off") != "on":
+        return
 
     query_api = client.query_api()
 
@@ -734,7 +711,7 @@ async def setup_reminder_due_min(update: Update, context: ContextTypes.DEFAULT_T
 
 async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add a job to the queue."""
-    if context.user_data.get("reminders", "on") == "on":
+    if context.user_data.get("all_reminders", "on") == "on" and context.user_data.get("reminders", "on") == "on":
         lang = context.user_data.get("language", DEFAULT_LANG)
         chat_id = update.effective_chat.id
 
@@ -870,7 +847,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
 
     write_api.write(bucket=INFLUXDB_BUCKET, record=points)
-    if context.user_data.get("reminders", "on") == "on":
+    if context.user_data.get("all_reminders", "on") == "on" and context.user_data.get("reminders", "on") == "on":
         done_text = bot_phases_dict["done_text"][lang]
     else:
         done_text = bot_phases_dict["done_text_no_reminders"][lang]
@@ -1072,12 +1049,6 @@ def main() -> None:
         states={
             STATE_SETTINGS_CHOOSING: [
                 CallbackQueryHandler(handle_settings_choice)
-            ],
-            STATE_SETTINGS_TOGGLE_REMINDERS: [
-                CallbackQueryHandler(handel_toggle_reminders)
-            ],
-            STATE_SETTINGS_TOGGLE_WEEKLY_SUMMARY: [
-                CallbackQueryHandler(handel_toggle_weekly_summary)
             ],
             STATE_SETTINGS_LANGUAGE: [
                 CallbackQueryHandler(handel_language_change)

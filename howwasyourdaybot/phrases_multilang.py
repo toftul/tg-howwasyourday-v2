@@ -342,6 +342,41 @@ Created by Ivan Toftul @toftl
         "ru": "Эта команда только для администратора.",
         "parse_mode": None,
     },
+    "all_reminders_on": {
+        "en": "All reminders: ON",
+        "ru": "Все уведомления: ВКЛ",
+        "parse_mode": None,
+    },
+    "all_reminders_off": {
+        "en": "All reminders: OFF",
+        "ru": "Все уведомления: ВЫКЛ",
+        "parse_mode": None,
+    },
+    "mood_reminders_on": {
+        "en": "Mood reminders: ON",
+        "ru": "Напоминания: ВКЛ",
+        "parse_mode": None,
+    },
+    "mood_reminders_off": {
+        "en": "Mood reminders: OFF",
+        "ru": "Напоминания: ВЫКЛ",
+        "parse_mode": None,
+    },
+    "weekly_summary_on_label": {
+        "en": "Weekly summary: ON",
+        "ru": "Еженедельный отчёт: ВКЛ",
+        "parse_mode": None,
+    },
+    "weekly_summary_off_label": {
+        "en": "Weekly summary: OFF",
+        "ru": "Еженедельный отчёт: ВЫКЛ",
+        "parse_mode": None,
+    },
+    "language_label": {
+        "en": "Language: English",
+        "ru": "Язык: Русский",
+        "parse_mode": None,
+    },
 }
 
 plot_words = {
