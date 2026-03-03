@@ -81,8 +81,9 @@ from phrases_multilang import (
 
 from filters import FilterAllowedChats, FilterEmotions, FilterIsDigit
 
-client = influxdb_client.InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
-write_api = client.write_api(write_options=SYNCHRONOUS)
+def _get_write_api():
+    client = influxdb_client.InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
+    return client.write_api(write_options=SYNCHRONOUS)
 
 
 # keyboard layouts
@@ -135,7 +136,7 @@ logger = logging.getLogger(__name__)
 # Consersation 
 STATE_GET_MOOD_SCORE, STATE_SELECT_EMOTIONS = range(2)
 
-STATE_SETTINGS_CHOOSING, STATE_SETTINGS_DUE, STATE_SETTINGS_LANGUAGE = range(3)
+STATE_SETTINGS_CHOOSING, STATE_SETTINGS_DUE, STATE_SETTINGS_LANGUAGE, STATE_SETTINGS_SUMMARY_FREQUENCY = range(4)
 
 STATE_STATS_CHOOSING = range(1)
 
@@ -246,9 +247,9 @@ async def handel_stats_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 def get_reply_markup_main_settings(lang, user_data):
-    all_rem = user_data.get("all_reminders", "on")
     rem = user_data.get("reminders", "on")
     weekly = user_data.get("weekly_summary", "off")
+    all_rem = "on" if (rem == "on" and weekly == "on") else "off"
     cur_lang = user_data.get("language", DEFAULT_LANG)
     due_min = user_data.get("REMINDER_DUE_MINIMAL_H", DUE_MINIMAL_H)
     due_max = user_data.get("REMINDER_DUE_MAXIMAL_H", DUE_MAXIMAL_H)
@@ -259,11 +260,26 @@ def get_reply_markup_main_settings(lang, user_data):
     reminder_window = bot_phases_dict["reminders_due"][lang] + ": " + bot_phases_dict["range_due"][lang].format(due_min=due_min, due_max=due_max)
     lang_label = bot_phases_dict["language_label"][cur_lang]
 
+    frequency = user_data.get("summary_frequency", "weekly")
+    freq_display = bot_phases_dict[f"summary_freq_{frequency}"][lang]
+    frequency_label = bot_phases_dict["summary_frequency_label"][lang].format(frequency=freq_display)
+
     settings_items_keyboard = [
         [InlineKeyboardButton(all_rem_label, callback_data="toggle_all_reminders")],
-        [InlineKeyboardButton(reminder_window, callback_data="reminders_due")],
         [InlineKeyboardButton(rem_label, callback_data="toggle_mood_reminders")],
+    ]
+    if rem == "on":
+        settings_items_keyboard.append(
+            [InlineKeyboardButton(reminder_window, callback_data="reminders_due")]
+        )
+    settings_items_keyboard += [
         [InlineKeyboardButton(weekly_label, callback_data="toggle_weekly_summary")],
+    ]
+    if weekly == "on":
+        settings_items_keyboard.append(
+            [InlineKeyboardButton(frequency_label, callback_data="summary_frequency")]
+        )
+    settings_items_keyboard += [
         [InlineKeyboardButton(lang_label, callback_data="change_language")],
         [InlineKeyboardButton(bot_phases_dict["cancel"][lang], callback_data="cancel")],
     ]
@@ -312,15 +328,18 @@ async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_T
         return STATE_SETTINGS_DUE
 
     elif user_choice_callback_data == "toggle_all_reminders":
-        current = context.user_data.get("all_reminders", "on")
-        new_val = "off" if current == "on" else "on"
-        context.user_data["all_reminders"] = new_val
+        rem = context.user_data.get("reminders", "on")
+        weekly = context.user_data.get("weekly_summary", "off")
+        # If both are already ON, turn all OFF; otherwise turn all ON
+        new_val = "off" if (rem == "on" and weekly == "on") else "on"
+        context.user_data["reminders"] = new_val
+        context.user_data["weekly_summary"] = new_val
         chat_id = update.effective_chat.id
+        frequency = context.user_data.get("summary_frequency", "weekly")
         if new_val == "off":
             remove_weekly_summary_jobs(context.application, chat_id)
         else:
-            if context.user_data.get("weekly_summary") == "on":
-                schedule_weekly_summary_for_chat(context.application, chat_id, lang)
+            schedule_weekly_summary_for_chat(context.application, chat_id, lang, frequency)
         reply_markup = get_reply_markup_main_settings(lang, context.user_data)
         await query.edit_message_text(
             text=bot_phases_dict["choose_settings"][lang],
@@ -346,8 +365,9 @@ async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_T
         new_val = "off" if current == "on" else "on"
         context.user_data["weekly_summary"] = new_val
         chat_id = update.effective_chat.id
-        if new_val == "on" and context.user_data.get("all_reminders", "on") == "on":
-            schedule_weekly_summary_for_chat(context.application, chat_id, lang)
+        if new_val == "on":
+            frequency = context.user_data.get("summary_frequency", "weekly")
+            schedule_weekly_summary_for_chat(context.application, chat_id, lang, frequency)
         elif new_val == "off":
             remove_weekly_summary_jobs(context.application, chat_id)
         reply_markup = get_reply_markup_main_settings(lang, context.user_data)
@@ -357,6 +377,20 @@ async def handle_settings_choice(update: Update, context: ContextTypes.DEFAULT_T
             parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
         )
         return STATE_SETTINGS_CHOOSING
+
+    elif user_choice_callback_data == "summary_frequency":
+        keyboard_freq = [
+            [InlineKeyboardButton(bot_phases_dict["summary_freq_weekly"][lang], callback_data="set_freq_weekly")],
+            [InlineKeyboardButton(bot_phases_dict["summary_freq_fortnightly"][lang], callback_data="set_freq_fortnightly")],
+            [InlineKeyboardButton(bot_phases_dict["summary_freq_monthly"][lang], callback_data="set_freq_monthly")],
+            [InlineKeyboardButton(bot_phases_dict["back"][lang], callback_data="back")],
+        ]
+        await query.edit_message_text(
+            text=bot_phases_dict["change_summary_frequency"][lang],
+            parse_mode=bot_phases_dict["change_summary_frequency"]["parse_mode"],
+            reply_markup=InlineKeyboardMarkup(keyboard_freq)
+        )
+        return STATE_SETTINGS_SUMMARY_FREQUENCY
 
     elif user_choice_callback_data == "change_language":
         keyboard_lang = [
@@ -450,6 +484,42 @@ async def handel_due_settings(update: Update, context: ContextTypes.DEFAULT_TYPE
         return ConversationHandler.END
 
 
+async def handel_summary_frequency(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("language", DEFAULT_LANG)
+    query = update.callback_query
+    user_choice_callback_data = query.data
+
+    if user_choice_callback_data == "back":
+        reply_markup = get_reply_markup_main_settings(lang, context.user_data)
+        await query.edit_message_text(
+            text=bot_phases_dict["choose_settings"][lang],
+            reply_markup=reply_markup,
+            parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
+        )
+        return STATE_SETTINGS_CHOOSING
+
+    freq_map = {
+        "set_freq_weekly": "weekly",
+        "set_freq_fortnightly": "fortnightly",
+        "set_freq_monthly": "monthly",
+    }
+    if user_choice_callback_data in freq_map:
+        frequency = freq_map[user_choice_callback_data]
+        context.user_data["summary_frequency"] = frequency
+        chat_id = update.effective_chat.id
+        # Reschedule with new interval if summaries are on
+        if context.user_data.get("weekly_summary") == "on":
+            schedule_weekly_summary_for_chat(context.application, chat_id, lang, frequency)
+        reply_markup = get_reply_markup_main_settings(lang, context.user_data)
+        await query.edit_message_text(
+            text=bot_phases_dict["choose_settings"][lang],
+            reply_markup=reply_markup,
+            parse_mode=bot_phases_dict["choose_settings"]["parse_mode"]
+        )
+        return STATE_SETTINGS_CHOOSING
+
+    return ConversationHandler.END
+
 
 def get_next_monday_10utc():
     """Calculate the datetime of the next Monday at 10:00 UTC."""
@@ -461,22 +531,29 @@ def get_next_monday_10utc():
     return next_monday
 
 
-def schedule_weekly_summary_for_chat(application, chat_id, lang):
-    """Schedule a weekly summary job for a single chat."""
+FREQUENCY_TO_INTERVAL = {
+    "weekly": timedelta(weeks=1),
+    "fortnightly": timedelta(weeks=2),
+    "monthly": timedelta(days=30),
+}
+
+
+def schedule_weekly_summary_for_chat(application, chat_id, lang, frequency="weekly"):
+    """Schedule a periodic summary job for a single chat."""
     job_name = f"{chat_id}_weekly_summary"
-    # Remove existing weekly summary jobs for this chat
     current_jobs = application.job_queue.get_jobs_by_name(job_name)
     for job in current_jobs:
         job.schedule_removal()
 
+    interval = FREQUENCY_TO_INTERVAL.get(frequency, timedelta(weeks=1))
     first = get_next_monday_10utc()
     application.job_queue.run_repeating(
         weekly_summary,
-        interval=timedelta(weeks=1),
+        interval=interval,
         first=first,
         chat_id=int(chat_id),
         name=job_name,
-        data=lang,
+        data={"lang": lang, "frequency": frequency},
     )
 
 
@@ -504,28 +581,38 @@ async def schedule_weekly_summaries_post_init(application):
     """Post-init callback to schedule weekly summaries from persisted user data."""
     user_data = await application.persistence.get_user_data()
     for user_id, data in user_data.items():
-        if data.get("weekly_summary") == "on" and data.get("all_reminders", "on") == "on":
+        if data.get("weekly_summary") == "on":
             lang = data.get("language", DEFAULT_LANG)
-            schedule_weekly_summary_for_chat(application, user_id, lang)
+            frequency = data.get("summary_frequency", "weekly")
+            schedule_weekly_summary_for_chat(application, user_id, lang, frequency)
+
+
+FREQUENCY_TO_DAYS = {"weekly": 7, "fortnightly": 14, "monthly": 30}
 
 
 async def weekly_summary(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a weekly mood summary to the user."""
+    """Send a periodic mood summary to the user."""
     job = context.job
     chat_id = job.chat_id
-    lang = job.data if job.data else DEFAULT_LANG
+    job_data = job.data or {}
+    # job.data is a dict {"lang": ..., "frequency": ...}; handle legacy string format
+    if isinstance(job_data, dict):
+        lang = job_data.get("lang", DEFAULT_LANG)
+        frequency = job_data.get("frequency", "weekly")
+    else:
+        lang = job_data
+        frequency = "weekly"
 
     user_data = context.application.user_data.get(chat_id, {})
-    if user_data.get("all_reminders", "on") == "off":
-        return
     if user_data.get("weekly_summary", "off") != "on":
         return
 
+    days = FREQUENCY_TO_DAYS.get(frequency, 7)
+    period = bot_phases_dict[f"summary_period_{frequency}"][lang]
     query_api = client.query_api()
 
-    # Query mood scores for the last 7 days
     query_mood = f"""from(bucket: "{INFLUXDB_BUCKET}")
-    |> range(start: -7d)
+    |> range(start: -{days}d)
     |> filter(fn: (r) => r["_measurement"] == "emotion_measurement")
     |> filter(fn: (r) => r["_field"] == "mood_score")
     |> filter(fn: (r) => r["user"] == "{chat_id}")
@@ -563,9 +650,8 @@ async def weekly_summary(context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         trend = bot_phases_dict["trend_stable"][lang]
 
-    # Query top emotions
     query_emotions = f"""from(bucket: "{INFLUXDB_BUCKET}")
-    |> range(start: -7d)
+    |> range(start: -{days}d)
     |> filter(fn: (r) => r["_measurement"] == "selected_emotions")
     |> filter(fn: (r) => r["user"] == "{chat_id}")
     """
@@ -593,6 +679,7 @@ async def weekly_summary(context: ContextTypes.DEFAULT_TYPE) -> None:
 
     # Format summary text
     summary_text = bot_phases_dict["weekly_summary_text"][lang].format(
+        period=period,
         avg_mood=avg_mood,
         count=count,
         top_emotions=top_emotions_str,
@@ -711,7 +798,7 @@ async def setup_reminder_due_min(update: Update, context: ContextTypes.DEFAULT_T
 
 async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add a job to the queue."""
-    if context.user_data.get("all_reminders", "on") == "on" and context.user_data.get("reminders", "on") == "on":
+    if context.user_data.get("reminders", "on") == "on":
         lang = context.user_data.get("language", DEFAULT_LANG)
         chat_id = update.effective_chat.id
 
@@ -846,8 +933,8 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             .time(datetime.now(timezone.utc))
         )
 
-    write_api.write(bucket=INFLUXDB_BUCKET, record=points)
-    if context.user_data.get("all_reminders", "on") == "on" and context.user_data.get("reminders", "on") == "on":
+    _get_write_api().write(bucket=INFLUXDB_BUCKET, record=points)
+    if context.user_data.get("reminders", "on") == "on":
         done_text = bot_phases_dict["done_text"][lang]
     else:
         done_text = bot_phases_dict["done_text_no_reminders"][lang]
@@ -1055,6 +1142,9 @@ def main() -> None:
             ],
             STATE_SETTINGS_DUE: [
                 CallbackQueryHandler(handel_due_settings)
+            ],
+            STATE_SETTINGS_SUMMARY_FREQUENCY: [
+                CallbackQueryHandler(handel_summary_frequency)
             ],
         },
         fallbacks=[cancel_handler]

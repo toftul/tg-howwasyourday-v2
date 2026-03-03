@@ -233,7 +233,7 @@ Created by Ivan Toftul @toftl
         "parse_mode": None,
     },
     "reminders_due": {
-        "en": "Reminders due",
+        "en": "Mood reminders due",
         "ru": "Интервал напоминалок",
         "parse_mode": None,
     },
@@ -303,13 +303,13 @@ Created by Ivan Toftul @toftl
         "parse_mode": None,
     },
     "weekly_summary_text": {
-        "en": "Your week in review:\n\nAverage mood: {avg_mood:.1f}\nEntries: {count}\nTop emotions: {top_emotions}\nTrend: {trend}",
-        "ru": "Твоя неделя:\n\nСреднее настроение: {avg_mood:.1f}\nЗаписей: {count}\nЧастые эмоции: {top_emotions}\nТренд: {trend}",
+        "en": "Your mood summary ({period}):\n\nAverage mood: {avg_mood:.1f}\nEntries: {count}\nTop emotions: {top_emotions}\nTrend: {trend}",
+        "ru": "Отчёт о настроении ({period}):\n\nСреднее настроение: {avg_mood:.1f}\nЗаписей: {count}\nЧастые эмоции: {top_emotions}\nТренд: {trend}",
         "parse_mode": None,
     },
     "weekly_summary_no_data": {
-        "en": "No data for this week",
-        "ru": "Нет данных за эту неделю",
+        "en": "No data for this period",
+        "ru": "Нет данных за этот период",
         "parse_mode": None,
     },
     "trend_improving": {
@@ -363,13 +363,53 @@ Created by Ivan Toftul @toftl
         "parse_mode": None,
     },
     "weekly_summary_on_label": {
-        "en": "Weekly summary: ON",
-        "ru": "Еженедельный отчёт: ВКЛ",
+        "en": "Summaries: ON",
+        "ru": "Отчёты: ВКЛ",
         "parse_mode": None,
     },
     "weekly_summary_off_label": {
-        "en": "Weekly summary: OFF",
-        "ru": "Еженедельный отчёт: ВЫКЛ",
+        "en": "Summaries: OFF",
+        "ru": "Отчёты: ВЫКЛ",
+        "parse_mode": None,
+    },
+    "summary_frequency_label": {
+        "en": "Summary frequency: {frequency}",
+        "ru": "Частота отчётов: {frequency}",
+        "parse_mode": None,
+    },
+    "change_summary_frequency": {
+        "en": "Choose summary frequency:",
+        "ru": "Выбери частоту отчётов:",
+        "parse_mode": None,
+    },
+    "summary_freq_weekly": {
+        "en": "Weekly",
+        "ru": "Еженедельно",
+        "parse_mode": None,
+    },
+    "summary_freq_fortnightly": {
+        "en": "Fortnightly",
+        "ru": "Каждые 2 недели",
+        "parse_mode": None,
+    },
+    "summary_freq_monthly": {
+        "en": "Monthly",
+        "ru": "Раз в месяц",
+        "parse_mode": None,
+    },
+    "summary_period_weekly": {
+        "en": "last 7 days",
+        "ru": "за 7 дней",
+        "parse_mode": None,
+    },
+    "summary_period_fortnightly": {
+        "en": "last 14 days",
+        "ru": "за 14 дней",
+        "parse_mode": None,
+    },
+    "summary_period_monthly": {
+        "en": "last 30 days",
+        "ru": "за 30 дней",
         "parse_mode": None,
     },
     "language_label": {
