@@ -29,8 +29,9 @@ from config import (
 # influxdb imports
 import influxdb_client
 
-client = influxdb_client.InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
-query_api = client.query_api()
+def _get_query_api():
+    client = influxdb_client.InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
+    return client.query_api()
 
 
 def confidence_ellipse(x, y, ax, n_std=3.0, facecolor='none', **kwargs):
@@ -96,6 +97,7 @@ def generate_stats_plot(chat_id, range_start='none', range_stop='now()', quick_r
     if range_start == 'none':
         range_start = '-' + quick_range
 
+    query_api = _get_query_api()
 
     def get_arousal_and_valence(query):
         result = query_api.query(query=query)

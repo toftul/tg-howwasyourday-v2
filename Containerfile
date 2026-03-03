@@ -1,10 +1,11 @@
-FROM python:3.10-slim-bookworm
+FROM python:3.11-slim-bookworm
 
 WORKDIR /bot
 
-COPY . . 
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install -r requirements.txt
+COPY . .
 
 WORKDIR /bot/howwasyourdaybot
 
